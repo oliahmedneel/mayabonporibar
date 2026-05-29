@@ -1,11 +1,14 @@
-import { Check, Lock, Users, Vote, X } from "lucide-react";
+import { Check, Lock, Users, Vote, X, SquareX, UserPlus, Loader2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   listenToVotingSessions,
   listenToVotingParticipants,
   submitAnonymousVote,
+  closeVotingSession, // সেশন ক্লোজ করার ফাংশন আনা হলো
 } from "../services/votingService";
 import { useAuth } from "../context/AuthContext";
+import { db } from "../config/firebase";
+import { doc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 
 function ResultBar({ label, count, total, tone }) {
   const percent = total > 0 ? Math.round((count / total) * 100) : 0;
@@ -28,6 +31,7 @@ function VotingSessionCard({ session }) {
   const { member } = useAuth();
   const [participants, setParticipants] = useState([]);
   const [submitting, setSubmitting] = useState("");
+  const [actionLoading, setActionLoading] = useState(false); // সেশন অ্যাকশনের জন্য লোডার
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -43,6 +47,7 @@ function VotingSessionCard({ session }) {
 
   const closed = session.status === "closed";
   const totalVotes = session.totalVotes || 0;
+  const isAdmin = member?.role === "admin"; // ইউজার অ্যাডমিন কিনা চেক
 
   async function handleVote(choice) {
     setSubmitting(choice);
@@ -57,6 +62,53 @@ function VotingSessionCard({ session }) {
     }
   }
 
+  // সেশন বন্ধ করার নতুন ফাংশন
+  async function handleCloseSession() {
+    if (!window.confirm("Are you sure you want to close this voting session?")) return;
+    setActionLoading(true);
+    setMessage("");
+    try {
+      await closeVotingSession({ sessionId: session.id, closedByMember: member });
+      setMessage("Voting session closed successfully.");
+    } catch (error) {
+      setMessage(error.message || "Could not close voting session.");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
+  // মেম্বার এপ্রুভ করে ডিরেক্টরিতে অ্যাড করার নতুন ফাংশন
+  async function handleApproveAndAddMember() {
+    if (!window.confirm(`Do you want to officially approve ${session.applicant?.fullName} as a member?`)) return;
+    setActionLoading(true);
+    setMessage("");
+    try {
+      // ১. applications কালেকশনে স্ট্যাটাস এপ্রুভড করা
+      if (session.applicationId) {
+        await updateDoc(doc(db, "applications", session.applicationId), {
+          status: "approved",
+          updatedAt: serverTimestamp(),
+        });
+      }
+
+      // ২. members কালেকশনে নতুন মেম্বার যুক্ত করা (আবেদনকারীর ইমেইল আইডি জেনারেট করে বা র্যান্ডমলি)
+      const newMemberId = session.applicationId || doc(collection(db, "members")).id;
+      await setDoc(doc(db, "members", newMemberId), {
+        fullName: session.applicant.fullName,
+        email: session.applicant.email || "",
+        role: "member",
+        status: "active",
+        createdAt: serverTimestamp(),
+      });
+
+      setMessage(`${session.applicant?.fullName} has been approved and added to the member directory.`);
+    } catch (error) {
+      setMessage(error.message || "Could not approve member.");
+    } finally {
+      setActionLoading(false);
+    }
+  }
+
   return (
     <article className="grid gap-5 rounded-md border border-slate-200 bg-white p-5 shadow-sm lg:grid-cols-[1fr_320px]">
       <div>
@@ -67,7 +119,7 @@ function VotingSessionCard({ session }) {
             className="h-16 w-16 rounded-md border border-slate-200 object-cover"
           />
           <div>
-            <p className="inline-flex items-center gap-2 rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-800">
+            <p className={`inline-flex items-center gap-2 rounded-md px-2 py-1 text-xs font-semibold ${closed ? "bg-red-50 text-red-800" : "bg-emerald-50 text-emerald-800"}`}>
               <Vote size={14} />
               {closed ? "Closed voting" : "Active voting"}
             </p>
@@ -94,6 +146,33 @@ function VotingSessionCard({ session }) {
             </p>
           </div>
         </div>
+
+        {/* অ্যাডমিন প্যানেল কন্ট্রোল বাটন সমূহ */}
+        {isAdmin && (
+          <div className="mt-5 flex flex-wrap gap-3 border-t border-dashed border-slate-200 pt-4">
+            {!closed ? (
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={handleCloseSession}
+                className="inline-flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:bg-slate-400"
+              >
+                {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <SquareX size={16} />}
+                Close Voting Session
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={handleApproveAndAddMember}
+                className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:bg-slate-400"
+              >
+                {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />}
+                Approve & Add Member
+              </button>
+            )}
+          </div>
+        )}
 
         {!closed && !hasVoted && (
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
@@ -123,7 +202,7 @@ function VotingSessionCard({ session }) {
             You have already participated in this vote.
           </p>
         )}
-        {message && <p className="mt-4 text-sm text-slate-600">{message}</p>}
+        {message && <p className="mt-4 text-sm font-medium text-emerald-700 bg-emerald-50 p-2 rounded">{message}</p>}
       </div>
 
       <aside className="rounded-md border border-slate-200 bg-slate-50 p-4">

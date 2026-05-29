@@ -8,6 +8,7 @@ import ApplyPage from "./pages/ApplyPage";
 import CommitteePage from "./pages/CommitteePage";
 import Dashboard from "./pages/Dashboard";
 import EventManagement from "./pages/EventManagement";
+import Login from "./pages/Login";
 import MemberDirectory from "./pages/MemberDirectory";
 import MemberProfileDetail from "./pages/MemberProfileDetail";
 import NoticeBoard from "./pages/NoticeBoard";
@@ -49,58 +50,6 @@ function PageShell({ title, subtitle }) {
   );
 }
 
-function LoginPage() {
-  const { login, loading, authError } = useAuth();
-
-  async function handleSubmit(event) {
-    event.preventDefault();
-    const formData = new FormData(event.currentTarget);
-    await login(formData.get("email"), formData.get("password"));
-  }
-
-  return (
-    <main className="flex min-h-[calc(100vh-65px)] items-center justify-center bg-slate-50 px-4 py-10">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-md rounded-md border border-slate-200 bg-white p-6 shadow-sm"
-      >
-        <h1 className="text-2xl font-bold text-slate-950">Member Login</h1>
-        <p className="mt-2 text-sm text-slate-500">
-          Sign in to access Mayabon Poribar member features.
-        </p>
-        <div className="mt-6 space-y-4">
-          <input
-            name="email"
-            type="email"
-            required
-            placeholder="Email address"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-600"
-          />
-          <input
-            name="password"
-            type="password"
-            required
-            placeholder="Password"
-            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-600"
-          />
-        </div>
-        {authError && (
-          <p className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
-            {authError.message}
-          </p>
-        )}
-        <button
-          type="submit"
-          disabled={loading}
-          className="mt-6 w-full rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-400"
-        >
-          Sign In
-        </button>
-      </form>
-    </main>
-  );
-}
-
 function LandingPage() {
   return (
     <main className="min-h-[calc(100vh-65px)] bg-slate-50 px-4 py-10">
@@ -128,7 +77,7 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/committee" element={<CommitteePage />} />
         <Route path="/apply" element={<ApplyPage />} />
-        <Route path="/login" element={<LoginPage />} />
+        <Route path="/login" element={<Login />} />
         <Route
           path="/unauthorized"
           element={
