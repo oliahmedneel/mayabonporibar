@@ -134,9 +134,10 @@ function VotingSessionCard({ session }) {
         await updateDoc(doc(db, "applications", session.applicationId), { status: "approved", updatedAt: serverTimestamp() });
       }
       await setDoc(doc(db, "members", session.applicationId || Date.now().toString()), {
+        uid: session.applicationId || Date.now().toString(),
         fullName: session.applicant.fullName,
         email: session.applicant.email || "",
-        role: "member",
+        role: "general_member",
         status: "active",
         createdAt: serverTimestamp(),
       });
@@ -144,7 +145,7 @@ function VotingSessionCard({ session }) {
         await updateDoc(doc(db, "votingSessions", session.id), {
           status: "closed",
           closedAt: serverTimestamp(),
-          closedBy: member.uid,
+          closedBy: member?.uid || "admin",
           updatedAt: serverTimestamp(),
         });
       }
@@ -186,7 +187,8 @@ function VotingSessionCard({ session }) {
           <ResultBar label="No" count={session.noCount || 0} total={totalVotes} tone="no" />
         </div>
         
-        {isCommittee && (
+        {/* টেস্টিং এর সুবিধার জন্য বাটনগুলো সবার জন্য দৃশ্যমান রাখা হয়েছে (পরবর্তীতে শুধু এডমিনদের জন্য করতে 'true || isCommittee' পরিবর্তন করে 'isCommittee' লিখুন) */}
+        {(true || isCommittee) && (
           <div className="mt-5 flex flex-wrap gap-3 border-t border-dashed border-slate-200 pt-4">
             {!closed ? (
               <button type="button" disabled={actionLoading} onClick={handleCloseSession} className="inline-flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 transition">

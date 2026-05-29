@@ -31,14 +31,16 @@ service cloud.firestore {
 
     match /members/{memberId} {
       allow read: if isActiveMember();
-      allow create: if isOwner(memberId)
+      allow create: if (isOwner(memberId)
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.role in ["general_member", "visitor"]
-        && request.resource.data.status in ["pending", "active"];
-      allow update: if isOwner(memberId)
+        && request.resource.data.status in ["pending", "active"])
+        || isAdminOrExecutive();
+      allow update: if (isOwner(memberId)
         && request.resource.data.uid == resource.data.uid
         && request.resource.data.role == resource.data.role
-        && request.resource.data.status == resource.data.status;
+        && request.resource.data.status == resource.data.status)
+        || isAdminOrExecutive();
       allow delete: if isAdminOrExecutive();
     }
 
