@@ -185,7 +185,6 @@ function VotingSessionCard({ session, onSessionUpdate }) {
           handleCodeInApp: true,
         };
         await sendSignInLinkToEmail(auth, applicantEmail, actionCodeSettings);
-        // Save email locally so the complete-signup page can pick it up
         window.localStorage.setItem("emailForSignIn", applicantEmail);
         setMessage(`✅ ${fullName || fallbackName} approved! A sign-in link has been sent to their email (${applicantEmail}).`);
       } else {
@@ -270,19 +269,18 @@ function VotingSessionCard({ session, onSessionUpdate }) {
           <ResultBar label="No" count={currentSession.noCount || 0} total={totalVotes} tone="no" />
         </div>
         
-        {/* টেস্টিং এর সুবিধার জন্য বাটনগুলো সবার জন্য দৃশ্যমান রাখা হয়েছে (পরবর্তীতে শুধু এডমিনদের জন্য করতে 'true || isCommittee' পরিবর্তন করে 'isCommittee' লিখুন) */}
         {(isCommittee) && (
           <div className="mt-5 flex flex-wrap gap-3 border-t border-dashed border-slate-200 pt-4">
             {!closed ? (
               <button type="button" disabled={actionLoading} onClick={handleCloseSession} className="inline-flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 transition">
                 {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <SquareX size={16} />} Close Voting
               </button>
-            ) : currentSession.memberApproved ? (
+            ) : currentSession.memberApproved || currentSession.applicant?.email ? (
               <div className="flex flex-col gap-2 w-full">
                 <button type="button" disabled className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white opacity-60 cursor-not-allowed w-full">
                   <Check size={16} /> Member Approved
                 </button>
-                <button type="button" disabled={actionLoading} onClick={() => handleResendLoginLink(currentSession)} className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition w-full">
+                <button type="button" disabled={actionLoading || sendingLinkTo === currentSession.id} onClick={() => handleResendLoginLink(currentSession)} className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition w-full">
                   {sendingLinkTo === currentSession.id ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />} Send Login Link
                 </button>
               </div>
