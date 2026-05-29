@@ -84,40 +84,49 @@ function ResultBar({ label, count, total, tone }) {
   );
 }
 
-function VotingSessionCard({ session }) {
+function VotingSessionCard({ session, onSessionUpdate }) {
   const { member, isCommittee } = useAuth();
   const [participants, setParticipants] = useState([]);
   const [submitting, setSubmitting] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [timeExpired, setTimeExpired] = useState(false);
-  const [memberApproved, setMemberApproved] = useState(session.memberApproved || false);
+  const [currentSession, setCurrentSession] = useState(session);
 
+  // Listen to real-time updates of this specific session
   useEffect(() => {
-    setMemberApproved(session.memberApproved || false);
-  }, [session.memberApproved]);
+    return onSnapshot(
+      doc(db, "votingSessions", session.id),
+      (snapshot) => {
+        if (snapshot.exists()) {
+          setCurrentSession({ id: snapshot.id, ...snapshot.data() });
+        }
+      },
+      (error) => setMessage(error.message)
+    );
+  }, [session.id]);
 
   useEffect(() => {
     return listenToVotingParticipants(session.id, setParticipants, (error) => setMessage(error.message));
   }, [session.id]);
 
   useEffect(() => {
-    if (session.closesAt) {
-      const targetTime = session.closesAt.toDate ? session.closesAt.toDate() : new Date(session.closesAt);
+    if (currentSession.closesAt) {
+      const targetTime = currentSession.closesAt.toDate ? currentSession.closesAt.toDate() : new Date(currentSession.closesAt);
       setTimeExpired(targetTime < new Date());
     } else {
       setTimeExpired(false);
     }
-  }, [session.closesAt, session.status]);
+  }, [currentSession.closesAt, currentSession.status]);
 
   const hasVoted = useMemo(() => participants.some((p) => p.id === member?.uid), [participants, member?.uid]);
-  const closed = session.status === "closed" || timeExpired;
-  const totalVotes = session.totalVotes || 0;
+  const closed = currentSession.status === "closed" || timeExpired;
+  const totalVotes = currentSession.totalVotes || 0;
 
   async function handleVote(choice) {
     setSubmitting(choice);
     try {
-      await submitAnonymousVote({ sessionId: session.id, choice, member });
+      await submitAnonymousVote({ sessionId: currentSession.id, choice, member });
       setMessage("Your vote was submitted anonymously.");
     } catch (error) { setMessage(error.message); } finally { setSubmitting(""); }
   }
@@ -126,29 +135,29 @@ function VotingSessionCard({ session }) {
     if (!window.confirm("Are you sure you want to close this session?")) return;
     setActionLoading(true);
     try {
-      await closeVotingSession({ sessionId: session.id, closedByMember: member });
+      await closeVotingSession({ sessionId: currentSession.id, closedByMember: member });
       setMessage("Session closed successfully.");
     } catch (error) { setMessage(error.message); } finally { setActionLoading(false); }
   }
 
   async function handleApproveAndAddMember() {
-    if (!window.confirm(`Approve ${session.applicant?.fullName}?`)) return;
+    if (!window.confirm(`Approve ${currentSession.applicant?.fullName}?`)) return;
     setActionLoading(true);
     try {
-      if (session.applicationId) {
-        await updateDoc(doc(db, "applications", session.applicationId), { status: "approved", updatedAt: serverTimestamp() });
+      if (currentSession.applicationId) {
+        await updateDoc(doc(db, "applications", currentSession.applicationId), { status: "approved", updatedAt: serverTimestamp() });
       }
       
       // Add member with complete data from the voting session
       const memberData = {
-        uid: session.applicationId || Date.now().toString(),
-        fullName: session.applicant.fullName,
-        banglaName: session.applicant.banglaName || "",
-        email: session.applicant.email || "",
-        phone: session.applicant.phone || "",
-        bio: session.applicant.bio || "",
-        socialLink: session.applicant.socialLink || "",
-        photoURL: session.applicant.photoURL || "",
+        uid: currentSession.applicationId || Date.now().toString(),
+        fullName: currentSession.applicant.fullName,
+        banglaName: currentSession.applicant.banglaName || "",
+        email: currentSession.applicant.email || "",
+        phone: currentSession.applicant.phone || "",
+        bio: currentSession.applicant.bio || "",
+        socialLink: currentSession.applicant.socialLink || "",
+        photoURL: currentSession.applicant.photoURL || "",
         role: "general_member",
         status: "active",
         createdAt: serverTimestamp(),
@@ -156,60 +165,58 @@ function VotingSessionCard({ session }) {
         approvedBy: member?.uid || "admin",
       };
       
-      await setDoc(doc(db, "members", session.applicationId), memberData);
+      await setDoc(doc(db, "members", currentSession.applicationId), memberData);
       
-      if (session.status !== "closed") {
-        await updateDoc(doc(db, "votingSessions", session.id), {
-          status: "closed",
-          closedAt: serverTimestamp(),
-          closedBy: member?.uid || "admin",
-          updatedAt: serverTimestamp(),
-          memberApproved: true,
-        });
-      } else {
-        await updateDoc(doc(db, "votingSessions", session.id), {
-          memberApproved: true,
-        });
-      }
-      setMemberApproved(true);
+      // Update voting session with both status and memberApproved flag
+      await updateDoc(doc(db, "votingSessions", currentSession.id), {
+        status: "closed",
+        closedAt: serverTimestamp(),
+        closedBy: member?.uid || "admin",
+        updatedAt: serverTimestamp(),
+        memberApproved: true,
+      });
+      
       setMessage("Member approved and added.");
-      // Clear message after 2 seconds to allow UI to reflect the changes
-      setTimeout(() => setMessage(""), 2000);
-    } catch (error) { setMessage(error.message); } finally { setActionLoading(false); }
+      setTimeout(() => setMessage(""), 3000);
+    } catch (error) { 
+      setMessage(error.message);
+    } finally { 
+      setActionLoading(false); 
+    }
   }
 
   return (
     <article className="grid gap-5 rounded-md border border-slate-200 bg-white p-5 shadow-sm lg:grid-cols-[1fr_320px] animate-fadeIn">
       <div>
         <div className="flex gap-4">
-          <img src={session.applicant?.photoURL || "/default-avatar.png"} className="h-16 w-16 rounded-md border border-slate-200 object-cover flex-shrink-0" alt="Applicant" />
+          <img src={currentSession.applicant?.photoURL || "/default-avatar.png"} className="h-16 w-16 rounded-md border border-slate-200 object-cover flex-shrink-0" alt="Applicant" />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <p className={`inline-flex items-center gap-2 rounded-md px-2 py-1 text-xs font-semibold ${closed ? "bg-red-50 text-red-800" : "bg-emerald-50 text-emerald-800"}`}>
                 <Vote size={14} /> {closed ? "Closed voting" : "Active voting"}
               </p>
-              {!closed && session.closesAt && (
-                <CountdownTimer closesAt={session.closesAt} onExpire={() => setTimeExpired(true)} />
+              {!closed && currentSession.closesAt && (
+                <CountdownTimer closesAt={currentSession.closesAt} onExpire={() => setTimeExpired(true)} />
               )}
             </div>
             
             {closed && (
               <p className="mt-1.5 text-xs font-medium text-slate-500">
-                {session.closedAt 
-                  ? `Closed at: ${formatTimestamp(session.closedAt)}` 
-                  : session.closesAt 
-                    ? `Expired at: ${formatTimestamp(session.closesAt)}` 
+                {currentSession.closedAt 
+                  ? `Closed at: ${formatTimestamp(currentSession.closedAt)}` 
+                  : currentSession.closesAt 
+                    ? `Expired at: ${formatTimestamp(currentSession.closesAt)}` 
                     : "Voting closed"}
               </p>
             )}
 
-            <h2 className="mt-2 text-xl font-bold text-slate-950 truncate">{session.title}</h2>
-            <p className="mt-1 text-sm leading-6 text-slate-600">{session.description || "Review and vote."}</p>
+            <h2 className="mt-2 text-xl font-bold text-slate-950 truncate">{currentSession.title}</h2>
+            <p className="mt-1 text-sm leading-6 text-slate-600">{currentSession.description || "Review and vote."}</p>
           </div>
         </div>
         <div className="mt-6 space-y-4">
-          <ResultBar label="Yes" count={session.yesCount || 0} total={totalVotes} tone="yes" />
-          <ResultBar label="No" count={session.noCount || 0} total={totalVotes} tone="no" />
+          <ResultBar label="Yes" count={currentSession.yesCount || 0} total={totalVotes} tone="yes" />
+          <ResultBar label="No" count={currentSession.noCount || 0} total={totalVotes} tone="no" />
         </div>
         
         {/* টেস্টিং এর সুবিধার জন্য বাটনগুলো সবার জন্য দৃশ্যমান রাখা হয়েছে (পরবর্তীতে শুধু এডমিনদের জন্য করতে 'true || isCommittee' পরিবর্তন করে 'isCommittee' লিখুন) */}
@@ -219,7 +226,7 @@ function VotingSessionCard({ session }) {
               <button type="button" disabled={actionLoading} onClick={handleCloseSession} className="inline-flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 transition">
                 {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <SquareX size={16} />} Close Voting
               </button>
-            ) : memberApproved ? (
+            ) : currentSession.memberApproved ? (
               <button type="button" disabled className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white opacity-60 cursor-not-allowed">
                 <Check size={16} /> Member Approved
               </button>
