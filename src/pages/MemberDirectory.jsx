@@ -1,8 +1,21 @@
 import { Mail, Phone, Shield, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { collection, onSnapshot, orderBy, query, where } from "firebase/firestore";
+import {
+  collection,
+  onSnapshot,
+  orderBy,
+  query,
+  where,
+} from "firebase/firestore";
 import { db } from "../config/firebase";
+
+// Sort newest first by createdAt (handles both Firestore Timestamp and plain dates)
+function sortByCreatedAtDesc(a, b) {
+  const aTime = a.createdAt?.toDate?.()?.getTime() ?? (typeof a.createdAt === 'number' ? a.createdAt : 0);
+  const bTime = b.createdAt?.toDate?.()?.getTime() ?? (typeof b.createdAt === 'number' ? b.createdAt : 0);
+  return bTime - aTime;
+}
 
 function MemberCard({ member }) {
   return (
@@ -36,9 +49,7 @@ export default function MemberDirectory() {
 
   useEffect(() => {
     const membersQuery = query(
-      collection(db, "members"),
-      where("status", "==", "active"),
-      orderBy("createdAt", "desc")
+      collection(db, "members")
     );
     const committeeQuery = query(
       collection(db, "executiveCommittee"),
@@ -47,7 +58,11 @@ export default function MemberDirectory() {
     );
 
     const unsubMembers = onSnapshot(membersQuery, (snapshot) => {
-      setMembers(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
+      const items = snapshot.docs
+        .map((item) => ({ id: item.id, ...item.data() }))
+        .filter((m) => m.status === "active")
+        .sort(sortByCreatedAtDesc);
+      setMembers(items);
     });
     const unsubCommittee = onSnapshot(committeeQuery, (snapshot) => {
       setCommittee(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));

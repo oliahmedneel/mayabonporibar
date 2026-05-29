@@ -1,4 +1,4 @@
-import { Check, Lock, Users, Vote, X, SquareX, UserPlus, Loader2, Clock } from "lucide-react";
+import { Check, Lock, Mail, Users, Vote, X, SquareX, UserPlus, Loader2, Clock } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   listenToVotingSessions,
@@ -7,8 +7,9 @@ import {
   closeVotingSession,
 } from "../services/votingService";
 import { useAuth } from "../context/AuthContext";
-import { db } from "../config/firebase";
+import { auth, db } from "../config/firebase";
 import { doc, setDoc, updateDoc, serverTimestamp, collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { sendSignInLinkToEmail } from "firebase/auth";
 
 function formatTimestamp(timestamp) {
   if (!timestamp) return "";
@@ -92,6 +93,7 @@ function VotingSessionCard({ session, onSessionUpdate }) {
   const [message, setMessage] = useState("");
   const [timeExpired, setTimeExpired] = useState(false);
   const [currentSession, setCurrentSession] = useState(session);
+  const [sendingLinkTo, setSendingLinkTo] = useState(null);
 
   // Listen to real-time updates of this specific session
   useEffect(() => {
@@ -147,6 +149,7 @@ function VotingSessionCard({ session, onSessionUpdate }) {
       const memberDocId = currentSession.applicationId || currentSession.id || Date.now().toString();
       const fullName = currentSession.applicant?.fullName?.trim();
       const fallbackName = currentSession.applicant?.email || currentSession.applicant?.phone || "নাম দেওয়া হয়নি";
+      const applicantEmail = (currentSession.applicant?.email || "").trim().toLowerCase();
 
       if (currentSession.applicationId) {
         await updateDoc(doc(db, "applications", currentSession.applicationId), {
@@ -160,7 +163,7 @@ function VotingSessionCard({ session, onSessionUpdate }) {
         memberId: memberDocId,
         fullName: fullName || fallbackName,
         banglaName: currentSession.applicant?.banglaName || "",
-        email: currentSession.applicant?.email || "",
+        email: applicantEmail,
         phone: currentSession.applicant?.phone || "",
         bio: currentSession.applicant?.bio || "",
         socialLink: currentSession.applicant?.socialLink || "",
@@ -174,6 +177,20 @@ function VotingSessionCard({ session, onSessionUpdate }) {
       };
 
       await setDoc(doc(db, "members", memberDocId), memberData);
+
+      // --- Send email sign-in link to the new member ---
+      if (applicantEmail) {
+        const actionCodeSettings = {
+          url: `${window.location.origin}/complete-signup?email=${encodeURIComponent(applicantEmail)}&memberName=${encodeURIComponent(fullName || fallbackName)}`,
+          handleCodeInApp: true,
+        };
+        await sendSignInLinkToEmail(auth, applicantEmail, actionCodeSettings);
+        // Save email locally so the complete-signup page can pick it up
+        window.localStorage.setItem("emailForSignIn", applicantEmail);
+        setMessage(`✅ ${fullName || fallbackName} approved! A sign-in link has been sent to their email (${applicantEmail}).`);
+      } else {
+        setMessage("✅ Member approved, but no email found to send sign-in link.");
+      }
 
       await updateDoc(doc(db, "votingSessions", currentSession.id), {
         status: "closed",
@@ -189,12 +206,33 @@ function VotingSessionCard({ session, onSessionUpdate }) {
         memberApproved: true,
         closedAt: new Date(),
       }));
-      setMessage("Member approved and added.");
-      setTimeout(() => setMessage(""), 3000);
     } catch (error) {
       setMessage(error.message);
     } finally {
       setActionLoading(false);
+    }
+  }
+
+  async function handleResendLoginLink(sessionData) {
+    const applicantEmail = (sessionData.applicant?.email || "").trim().toLowerCase();
+    if (!applicantEmail) {
+      setMessage("❌ No email found for this applicant.");
+      return;
+    }
+    setSendingLinkTo(sessionData.id);
+    setMessage("");
+    try {
+      const actionCodeSettings = {
+        url: `${window.location.origin}/complete-signup?email=${encodeURIComponent(applicantEmail)}&memberName=${encodeURIComponent(sessionData.applicant?.fullName || "")}`,
+        handleCodeInApp: true,
+      };
+      await sendSignInLinkToEmail(auth, applicantEmail, actionCodeSettings);
+      window.localStorage.setItem("emailForSignIn", applicantEmail);
+      setMessage(`✅ Login link sent to ${applicantEmail}`);
+    } catch (error) {
+      setMessage(`❌ ${error.message}`);
+    } finally {
+      setSendingLinkTo(null);
     }
   }
 
@@ -240,9 +278,14 @@ function VotingSessionCard({ session, onSessionUpdate }) {
                 {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <SquareX size={16} />} Close Voting
               </button>
             ) : currentSession.memberApproved ? (
-              <button type="button" disabled className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white opacity-60 cursor-not-allowed">
-                <Check size={16} /> Member Approved
-              </button>
+              <div className="flex flex-col gap-2 w-full">
+                <button type="button" disabled className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white opacity-60 cursor-not-allowed w-full">
+                  <Check size={16} /> Member Approved
+                </button>
+                <button type="button" disabled={actionLoading} onClick={() => handleResendLoginLink(currentSession)} className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition w-full">
+                  {sendingLinkTo === currentSession.id ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />} Send Login Link
+                </button>
+              </div>
             ) : (
               <button type="button" disabled={actionLoading} onClick={handleApproveAndAddMember} className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition">
                 {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <UserPlus size={16} />} Approve Member

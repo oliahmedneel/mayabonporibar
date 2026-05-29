@@ -6,6 +6,7 @@ import { CommitteeRoute, MemberRoute } from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
 import ApplyPage from "./pages/ApplyPage";
 import CommitteePage from "./pages/CommitteePage";
+import CompleteSignup from "./pages/CompleteSignup";
 import Dashboard from "./pages/Dashboard";
 import EventManagement from "./pages/EventManagement";
 import Login from "./pages/Login";
@@ -77,6 +78,7 @@ export default function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/committee" element={<CommitteePage />} />
         <Route path="/apply" element={<ApplyPage />} />
+        <Route path="/complete-signup" element={<CompleteSignup />} />
         <Route path="/login" element={<Login />} />
         <Route
           path="/unauthorized"
