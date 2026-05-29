@@ -275,7 +275,7 @@ function VotingSessionCard({ session, onSessionUpdate }) {
               <button type="button" disabled={actionLoading} onClick={handleCloseSession} className="inline-flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 transition">
                 {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <SquareX size={16} />} Close Voting
               </button>
-            ) : currentSession.memberApproved || currentSession.applicant?.email ? (
+            ) : closed && currentSession.applicant?.email ? (
               <div className="flex flex-col gap-2 w-full">
                 <button type="button" disabled className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white opacity-60 cursor-not-allowed w-full">
                   <Check size={16} /> Member Approved
