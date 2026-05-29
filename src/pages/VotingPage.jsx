@@ -148,7 +148,7 @@ function VotingSessionCard({ session }) {
         </div>
 
         {/* অ্যাডমিন প্যানেল কন্ট্রোল বাটন সমূহ */}
-        {isAdmin && (
+        
           <div className="mt-5 flex flex-wrap gap-3 border-t border-dashed border-slate-200 pt-4">
             {!closed ? (
               <button
@@ -172,7 +172,7 @@ function VotingSessionCard({ session }) {
               </button>
             )}
           </div>
-        )}
+        
 
         {!closed && !hasVoted && (
           <div className="mt-5 flex flex-col gap-3 sm:flex-row">
@@ -240,9 +240,22 @@ export default function VotingPage() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    return listenToVotingSessions(setSessions, (err) => {
-      setError(err.message);
-    });
+    // সব সেশন (অ্যাক্টিভ এবং ক্লোজড দুইটাই) একসাথে ট্র্যাক করার জন্য ফায়ারবেস কুয়েরি
+    const { collection, query, orderBy, onSnapshot } = require("firebase/firestore");
+    const sessionsQuery = query(
+      collection(db, "votingSessions"),
+      orderBy("startedAt", "desc")
+    );
+
+    return onSnapshot(
+      sessionsQuery,
+      (snapshot) => {
+        setSessions(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
+      },
+      (err) => {
+        setError(err.message);
+      }
+    );
   }, []);
 
   return (
