@@ -188,7 +188,7 @@ function VotingSessionCard({ session }) {
         </div>
         
         {/* টেস্টিং এর সুবিধার জন্য বাটনগুলো সবার জন্য দৃশ্যমান রাখা হয়েছে (পরবর্তীতে শুধু এডমিনদের জন্য করতে 'true || isCommittee' পরিবর্তন করে 'isCommittee' লিখুন) */}
-        {(true || isCommittee) && (
+        {(isCommittee) && (
           <div className="mt-5 flex flex-wrap gap-3 border-t border-dashed border-slate-200 pt-4">
             {!closed ? (
               <button type="button" disabled={actionLoading} onClick={handleCloseSession} className="inline-flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 transition">
