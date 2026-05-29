@@ -9,10 +9,18 @@
     />
     <title>মায়াবন পরিবার</title>
     <script>
-      // GitHub Pages SPA redirect — let the React app handle routing
+      // GitHub Pages SPA redirect — preserve all query parameters
+      var path = location.pathname.replace("/mayabonporibar/", "").replace(/^\//, "");
+      var base = "/mayabonporibar/";
+      var redirect = base;
+      if (path && path !== "") {
+        redirect = base + path + location.search + location.hash;
+      } else if (location.search) {
+        redirect = base + "complete-signup" + location.search;
+      }
       sessionStorage.redirect = location.href;
+      location.replace(redirect);
     </script>
-    <meta http-equiv="refresh" content="0;URL='/mayabonporibar/'" />
   </head>
   <body>
     <p>Redirecting to Mayabon Poribar...</p>
