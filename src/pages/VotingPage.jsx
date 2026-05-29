@@ -144,30 +144,37 @@ function VotingSessionCard({ session, onSessionUpdate }) {
     if (!window.confirm(`Approve ${currentSession.applicant?.fullName}?`)) return;
     setActionLoading(true);
     try {
+      const memberDocId = currentSession.applicationId || currentSession.id || Date.now().toString();
+      const fullName = currentSession.applicant?.fullName?.trim();
+      const fallbackName = currentSession.applicant?.email || currentSession.applicant?.phone || "নাম দেওয়া হয়নি";
+
       if (currentSession.applicationId) {
-        await updateDoc(doc(db, "applications", currentSession.applicationId), { status: "approved", updatedAt: serverTimestamp() });
+        await updateDoc(doc(db, "applications", currentSession.applicationId), {
+          status: "approved",
+          updatedAt: serverTimestamp(),
+        });
       }
-      
-      // Add member with complete data from the voting session
+
       const memberData = {
-        uid: currentSession.applicationId || Date.now().toString(),
-        fullName: currentSession.applicant.fullName,
-        banglaName: currentSession.applicant.banglaName || "",
-        email: currentSession.applicant.email || "",
-        phone: currentSession.applicant.phone || "",
-        bio: currentSession.applicant.bio || "",
-        socialLink: currentSession.applicant.socialLink || "",
-        photoURL: currentSession.applicant.photoURL || "",
+        uid: memberDocId,
+        memberId: memberDocId,
+        fullName: fullName || fallbackName,
+        banglaName: currentSession.applicant?.banglaName || "",
+        email: currentSession.applicant?.email || "",
+        phone: currentSession.applicant?.phone || "",
+        bio: currentSession.applicant?.bio || "",
+        socialLink: currentSession.applicant?.socialLink || "",
+        photoURL: currentSession.applicant?.photoURL || "",
         role: "general_member",
         status: "active",
         createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
         approvedAt: serverTimestamp(),
         approvedBy: member?.uid || "admin",
       };
-      
-      await setDoc(doc(db, "members", currentSession.applicationId), memberData);
-      
-      // Update voting session with both status and memberApproved flag
+
+      await setDoc(doc(db, "members", memberDocId), memberData);
+
       await updateDoc(doc(db, "votingSessions", currentSession.id), {
         status: "closed",
         closedAt: serverTimestamp(),
@@ -175,13 +182,19 @@ function VotingSessionCard({ session, onSessionUpdate }) {
         updatedAt: serverTimestamp(),
         memberApproved: true,
       });
-      
+
+      setCurrentSession((prev) => ({
+        ...prev,
+        status: "closed",
+        memberApproved: true,
+        closedAt: new Date(),
+      }));
       setMessage("Member approved and added.");
       setTimeout(() => setMessage(""), 3000);
-    } catch (error) { 
+    } catch (error) {
       setMessage(error.message);
-    } finally { 
-      setActionLoading(false); 
+    } finally {
+      setActionLoading(false);
     }
   }
 

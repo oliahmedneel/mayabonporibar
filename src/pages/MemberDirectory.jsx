@@ -38,7 +38,7 @@ export default function MemberDirectory() {
     const membersQuery = query(
       collection(db, "members"),
       where("status", "==", "active"),
-      orderBy("fullName", "asc")
+      orderBy("createdAt", "desc")
     );
     const committeeQuery = query(
       collection(db, "executiveCommittee"),
