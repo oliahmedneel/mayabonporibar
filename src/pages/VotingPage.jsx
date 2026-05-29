@@ -91,6 +91,11 @@ function VotingSessionCard({ session }) {
   const [actionLoading, setActionLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [timeExpired, setTimeExpired] = useState(false);
+  const [memberApproved, setMemberApproved] = useState(session.memberApproved || false);
+
+  useEffect(() => {
+    setMemberApproved(session.memberApproved || false);
+  }, [session.memberApproved]);
 
   useEffect(() => {
     return listenToVotingParticipants(session.id, setParticipants, (error) => setMessage(error.message));
@@ -133,23 +138,43 @@ function VotingSessionCard({ session }) {
       if (session.applicationId) {
         await updateDoc(doc(db, "applications", session.applicationId), { status: "approved", updatedAt: serverTimestamp() });
       }
-      await setDoc(doc(db, "members", session.applicationId || Date.now().toString()), {
+      
+      // Add member with complete data from the voting session
+      const memberData = {
         uid: session.applicationId || Date.now().toString(),
         fullName: session.applicant.fullName,
+        banglaName: session.applicant.banglaName || "",
         email: session.applicant.email || "",
+        phone: session.applicant.phone || "",
+        bio: session.applicant.bio || "",
+        socialLink: session.applicant.socialLink || "",
+        photoURL: session.applicant.photoURL || "",
         role: "general_member",
         status: "active",
         createdAt: serverTimestamp(),
-      });
+        approvedAt: serverTimestamp(),
+        approvedBy: member?.uid || "admin",
+      };
+      
+      await setDoc(doc(db, "members", session.applicationId), memberData);
+      
       if (session.status !== "closed") {
         await updateDoc(doc(db, "votingSessions", session.id), {
           status: "closed",
           closedAt: serverTimestamp(),
           closedBy: member?.uid || "admin",
           updatedAt: serverTimestamp(),
+          memberApproved: true,
+        });
+      } else {
+        await updateDoc(doc(db, "votingSessions", session.id), {
+          memberApproved: true,
         });
       }
+      setMemberApproved(true);
       setMessage("Member approved and added.");
+      // Clear message after 2 seconds to allow UI to reflect the changes
+      setTimeout(() => setMessage(""), 2000);
     } catch (error) { setMessage(error.message); } finally { setActionLoading(false); }
   }
 
@@ -193,6 +218,10 @@ function VotingSessionCard({ session }) {
             {!closed ? (
               <button type="button" disabled={actionLoading} onClick={handleCloseSession} className="inline-flex items-center gap-2 rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 transition">
                 {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <SquareX size={16} />} Close Voting
+              </button>
+            ) : memberApproved ? (
+              <button type="button" disabled className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white opacity-60 cursor-not-allowed">
+                <Check size={16} /> Member Approved
               </button>
             ) : (
               <button type="button" disabled={actionLoading} onClick={handleApproveAndAddMember} className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700 transition">
