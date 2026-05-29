@@ -1,0 +1,185 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function memberPath(uid) {
+      return /databases/$(database)/documents/members/$(uid);
+    }
+
+    function memberData() {
+      return get(memberPath(request.auth.uid)).data;
+    }
+
+    function isActiveMember() {
+      return isSignedIn()
+        && exists(memberPath(request.auth.uid))
+        && memberData().status == "active";
+    }
+
+    function isAdminOrExecutive() {
+      return isActiveMember()
+        && (memberData().role == "admin" || memberData().role == "executive");
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    match /members/{memberId} {
+      allow read: if isActiveMember();
+      allow create: if isOwner(memberId)
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.role in ["general_member", "visitor"]
+        && request.resource.data.status in ["pending", "active"];
+      allow update: if isOwner(memberId)
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.status == resource.data.status;
+      allow delete: if isAdminOrExecutive();
+    }
+
+    match /executiveCommittee/{committeeMemberId} {
+      allow read: if true;
+      allow write: if isAdminOrExecutive();
+    }
+
+    match /applications/{applicationId} {
+      allow create: if true
+        && request.resource.data.keys().hasOnly([
+          "fullName",
+          "email",
+          "bio",
+          "phone",
+          "socialLink",
+          "status",
+          "createdAt",
+          "updatedAt"
+        ])
+        && request.resource.data.status == "pending"
+        && request.resource.data.fullName is string
+        && request.resource.data.fullName.size() > 1
+        && request.resource.data.email is string
+        && request.resource.data.email.size() > 3
+        && request.resource.data.bio is string
+        && request.resource.data.bio.size() > 1;
+      allow read, update, delete: if isAdminOrExecutive();
+
+      match /assets/{assetId} {
+        allow create: if true
+          && request.resource.data.keys().hasOnly(["type", "url", "createdAt"])
+          && request.resource.data.type == "profile_photo";
+        allow read, update, delete: if isAdminOrExecutive();
+      }
+    }
+
+    match /votingSessions/{sessionId} {
+      allow read: if isActiveMember();
+      allow create, update, delete: if isAdminOrExecutive();
+
+      match /voters_participated/{memberId} {
+        allow read: if isActiveMember();
+        allow create: if isActiveMember()
+          && request.auth.uid == memberId
+          && request.resource.data.keys().hasOnly([
+            "uid",
+            "memberId",
+            "fullName",
+            "banglaName",
+            "photoURL",
+            "participatedAt"
+          ])
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.memberId == request.auth.uid;
+        allow update, delete: if false;
+      }
+
+      match /anonymous_votes/{voteId} {
+        allow read: if false;
+        allow create: if isActiveMember()
+          && request.resource.data.keys().hasOnly(["choice", "createdAt"])
+          && request.resource.data.choice in ["yes", "no"];
+        allow update, delete: if false;
+      }
+    }
+
+    match /chatRooms/{roomId} {
+      allow read: if isActiveMember();
+      allow create, update: if isActiveMember()
+        && roomId == "common";
+      allow delete: if isAdminOrExecutive();
+
+      match /messages/{messageId} {
+        allow read: if isActiveMember();
+        allow create: if isActiveMember()
+          && roomId == "common"
+          && request.resource.data.keys().hasOnly([
+            "text",
+            "senderUid",
+            "senderName",
+            "senderPhotoURL",
+            "createdAt",
+            "updatedAt",
+            "deleted"
+          ])
+          && request.resource.data.senderUid == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 1000
+          && request.resource.data.deleted == false;
+        allow update: if isActiveMember()
+          && resource.data.senderUid == request.auth.uid
+          && request.resource.data.keys().hasOnly([
+            "text",
+            "senderUid",
+            "senderName",
+            "senderPhotoURL",
+            "createdAt",
+            "updatedAt",
+            "deleted"
+          ])
+          && request.resource.data.senderUid == resource.data.senderUid
+          && request.resource.data.senderName == resource.data.senderName
+          && request.resource.data.senderPhotoURL == resource.data.senderPhotoURL
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.text is string
+          && request.resource.data.text.size() <= 1000;
+        allow delete: if isAdminOrExecutive();
+      }
+    }
+
+    match /notices/{noticeId} {
+      allow read: if isActiveMember();
+      allow write: if isAdminOrExecutive();
+    }
+
+    match /events/{eventId} {
+      allow read: if isActiveMember();
+      allow write: if isAdminOrExecutive();
+
+      match /rsvps/{memberId} {
+        allow read: if isActiveMember();
+        allow create, update, delete: if isActiveMember()
+          && request.auth.uid == memberId;
+      }
+    }
+
+    match /galleryAlbums/{albumId} {
+      allow read: if isActiveMember();
+      allow write: if isAdminOrExecutive();
+
+      match /photos/{photoId} {
+        allow read: if isActiveMember();
+        allow write: if isAdminOrExecutive();
+      }
+    }
+
+    match /gallery/{photoId} {
+      allow read: if isActiveMember();
+      allow create, update, delete: if isAdminOrExecutive();
+    }
+  }
+}
