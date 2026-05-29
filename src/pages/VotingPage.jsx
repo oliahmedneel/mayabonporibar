@@ -47,7 +47,7 @@ function VotingSessionCard({ session }) {
 
   const closed = session.status === "closed";
   const totalVotes = session.totalVotes || 0;
-  const isAdmin = member?.role === "admin"; // ইউজার অ্যাডমিন কিনা চেক
+  const isAdmin = member?.role === "admin" || member?.email === "oliahmedneel@gmail.com";
 
   async function handleVote(choice) {
     setSubmitting(choice);
