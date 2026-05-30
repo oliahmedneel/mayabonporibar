@@ -22,7 +22,7 @@ function MemberCard({ member }) {
     <Link to={`/members/${member.id}`} className="block rounded-md border border-slate-200 bg-white p-5 shadow-sm transition hover:border-emerald-300 hover:shadow">
       <div className="flex items-start gap-4">
         <img
-          src={member.photoURL || "/default-avatar.svg"}
+          src={member.photoURL || `${import.meta.env.BASE_URL}default-avatar.svg`}
           alt={member.fullName}
           className="h-16 w-16 rounded-md border border-slate-200 object-cover"
         />
@@ -99,7 +99,7 @@ export default function MemberDirectory() {
             {committee.map((item) => (
               <article key={item.id} className="rounded-md bg-emerald-50 p-4">
                 <img
-                  src={item.photoURL || "/default-avatar.svg"}
+                  src={item.photoURL || `${import.meta.env.BASE_URL}default-avatar.svg`}
                   alt={item.fullName}
                   className="h-16 w-16 rounded-md border border-emerald-100 object-cover"
                 />
