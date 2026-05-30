@@ -41,10 +41,11 @@ service cloud.firestore {
         || isAdminOrExecutive();
 
       allow update: if (isOwner(memberId)
-        && request.resource.data.uid == resource.data.uid
-        && request.resource.data.role == resource.data.role
-        && request.resource.data.status == resource.data.status)
-        || isAdminOrExecutive();
+      && request.resource.data.uid == resource.data.uid
+      && request.resource.data.role == resource.data.role
+      && request.resource.data.status == resource.data.status
+      && request.resource.data.bio is string)
+      || isAdminOrExecutive();
 
       allow delete: if isAdminOrExecutive() 
         || (isSignedIn() && resource.data.email == request.auth.token.email);

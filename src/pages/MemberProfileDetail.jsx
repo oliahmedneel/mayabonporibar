@@ -151,22 +151,39 @@ export default function MemberProfileDetail() {
                 <UserRound size={21} className="text-emerald-700" />
                 Bio
               </h2>
-              {isMyProfile && (
+              {isMyProfile && !isEditing && (
                 <button
-                  onClick={() => (isEditing ? handleUpdateBio() : setIsEditing(true))}
+                  onClick={() => { setBioText(profile.bio || ""); setIsEditing(true); }}
                   className="rounded-md bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-800 hover:bg-emerald-100"
                 >
-                  {isEditing ? "Save" : "Edit Bio"}
+                  Edit Bio
                 </button>
               )}
             </div>
             {isEditing ? (
-              <textarea
-                className="mt-4 w-full rounded-md border border-slate-300 p-3 text-sm text-slate-700 outline-none focus:border-emerald-600"
-                rows={4}
-                value={bioText}
-                onChange={(e) => setBioText(e.target.value)}
-              />
+              <div className="mt-4">
+                <textarea
+                  className="w-full rounded-md border border-slate-300 p-3 text-sm text-slate-700 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                  rows={5}
+                  value={bioText}
+                  onChange={(e) => setBioText(e.target.value)}
+                  placeholder="Write something about yourself..."
+                />
+                <div className="mt-3 flex items-center gap-2">
+                  <button
+                    onClick={handleUpdateBio}
+                    className="rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 transition"
+                  >
+                    Save
+                  </button>
+                  <button
+                    onClick={() => { setIsEditing(false); setBioText(profile.bio || ""); }}
+                    className="rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
             ) : (
               <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-slate-600">
                 {profile.bio || "No bio has been added yet."}

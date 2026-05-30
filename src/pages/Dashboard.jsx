@@ -5,6 +5,7 @@ import {
   Loader2,
   MessageCircle,
   Pin,
+  UserRound,
   Users,
   Vote,
 } from "lucide-react";
@@ -148,6 +149,13 @@ export default function Dashboard() {
               Keep your profile photo updated so others can recognize you.
               Stay connected with announcements and gatherings.
             </p>
+            <Link
+              to={`/members/${uid}`}
+              className="mt-3 inline-flex items-center gap-2 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-emerald-800 transition"
+            >
+              <UserRound size={16} />
+              My Profile & Edit Bio
+            </Link>
           </div>
         </section>
 
