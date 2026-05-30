@@ -239,7 +239,7 @@ function VotingSessionCard({ session, onSessionUpdate }) {
     <article className="grid gap-5 rounded-md border border-slate-200 bg-white p-5 shadow-sm lg:grid-cols-[1fr_320px] animate-fadeIn">
       <div>
         <div className="flex gap-4">
-          <img src={currentSession.applicant?.photoURL || "/default-avatar.png"} className="h-16 w-16 rounded-md border border-slate-200 object-cover flex-shrink-0" alt="Applicant" />
+          <img src={currentSession.applicant?.photoURL || `${import.meta.env.BASE_URL}default-avatar.svg`} className="h-16 w-16 rounded-md border border-slate-200 object-cover flex-shrink-0" alt="Applicant" />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <p className={`inline-flex items-center gap-2 rounded-md px-2 py-1 text-xs font-semibold ${closed ? "bg-red-50 text-red-800" : "bg-emerald-50 text-emerald-800"}`}>

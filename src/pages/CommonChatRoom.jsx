@@ -72,7 +72,7 @@ export default function CommonChatRoom() {
               >
                 {!mine && (
                   <img
-                    src={message.senderPhotoURL || "/default-avatar.png"}
+                    src={message.senderPhotoURL || `${import.meta.env.BASE_URL}default-avatar.svg`}
                     alt={message.senderName}
                     className="h-9 w-9 rounded-full border border-slate-200 object-cover"
                   />
