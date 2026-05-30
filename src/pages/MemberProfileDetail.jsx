@@ -1,8 +1,9 @@
 import { ArrowLeft, BriefcaseBusiness, CalendarDays, Loader2, Mail, Phone, UserRound } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { doc, onSnapshot } from "firebase/firestore";
+import { doc, onSnapshot, updateDoc } from "firebase/firestore";
 import { db } from "../config/firebase";
+import { useAuth } from "../context/AuthContext";
 
 function dateText(value) {
   const date = value?.toDate?.();
@@ -11,9 +12,14 @@ function dateText(value) {
 
 export default function MemberProfileDetail() {
   const { memberId } = useParams();
+  const { uid } = useAuth();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+  const [bioText, setBioText] = useState("");
+
+  const isMyProfile = uid === memberId;
 
   useEffect(() => {
     if (!memberId) return undefined;
@@ -21,7 +27,9 @@ export default function MemberProfileDetail() {
     return onSnapshot(
       doc(db, "members", memberId),
       (snapshot) => {
-        setProfile(snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null);
+        const data = snapshot.exists() ? { id: snapshot.id, ...snapshot.data() } : null;
+        setProfile(data);
+        if (data) setBioText(data.bio || "");
         setLoading(false);
       },
       (err) => {
@@ -30,6 +38,15 @@ export default function MemberProfileDetail() {
       }
     );
   }, [memberId]);
+
+  async function handleUpdateBio() {
+    try {
+      await updateDoc(doc(db, "members", memberId), { bio: bioText });
+      setIsEditing(false);
+    } catch (err) {
+      alert("Failed to update bio: " + err.message);
+    }
+  }
 
   if (loading) {
     return (
@@ -129,13 +146,32 @@ export default function MemberProfileDetail() {
 
         <section className="mt-6 grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
           <article className="rounded-md border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="flex items-center gap-2 text-xl font-bold text-slate-950">
-              <UserRound size={21} className="text-emerald-700" />
-              Bio
-            </h2>
-            <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-slate-600">
-              {profile.bio || "No bio has been added yet."}
-            </p>
+            <div className="flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-xl font-bold text-slate-950">
+                <UserRound size={21} className="text-emerald-700" />
+                Bio
+              </h2>
+              {isMyProfile && (
+                <button
+                  onClick={() => (isEditing ? handleUpdateBio() : setIsEditing(true))}
+                  className="rounded-md bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-800 hover:bg-emerald-100"
+                >
+                  {isEditing ? "Save" : "Edit Bio"}
+                </button>
+              )}
+            </div>
+            {isEditing ? (
+              <textarea
+                className="mt-4 w-full rounded-md border border-slate-300 p-3 text-sm text-slate-700 outline-none focus:border-emerald-600"
+                rows={4}
+                value={bioText}
+                onChange={(e) => setBioText(e.target.value)}
+              />
+            ) : (
+              <p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-slate-600">
+                {profile.bio || "No bio has been added yet."}
+              </p>
+            )}
           </article>
 
           <aside className="rounded-md border border-slate-200 bg-white p-6 shadow-sm">
