@@ -1,6 +1,8 @@
 import {
   CalendarDays,
+  Camera,
   Image,
+  Loader2,
   MessageCircle,
   Pin,
   Users,
@@ -10,14 +12,17 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   collection,
+  doc,
   limit,
   onSnapshot,
   orderBy,
   query,
+  updateDoc,
   where,
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { useAuth } from "../context/AuthContext";
+import { compressImage } from "../services/imageService";
 
 const shortcuts = [
   { to: "/members", label: "Member Directory", icon: Users },
@@ -33,9 +38,53 @@ function toDateText(value) {
 }
 
 export default function Dashboard() {
-  const { displayName, isCommittee } = useAuth();
+  const { uid, displayName, photoURL, isCommittee } = useAuth();
   const [notices, setNotices] = useState([]);
   const [events, setEvents] = useState([]);
+  const [uploading, setUploading] = useState(false);
+
+  async function handlePhotoUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Please select an image file.");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      // Automatically compress image before upload
+      const compressedBlob = await compressImage(file, {
+        maxWidth: 800,
+        maxHeight: 800,
+        quality: 0.7,
+      });
+
+      const formData = new FormData();
+      formData.append("image", compressedBlob);
+
+      // Using the hardcoded API key for consistency with Gallery implementation
+      const apiKey = "137614336ce818edd585fb7df6650421";
+      const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+        method: "POST",
+        body: formData,
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        await updateDoc(doc(db, "members", uid), {
+          photoURL: result.data.url,
+        });
+      } else {
+        throw new Error(result.error?.message || "Upload failed");
+      }
+    } catch (err) {
+      alert("Error updating profile photo: " + err.message);
+    } finally {
+      setUploading(false);
+    }
+  }
 
   useEffect(() => {
     const noticesQuery = query(
@@ -66,17 +115,40 @@ export default function Dashboard() {
   return (
     <main className="min-h-[calc(100vh-65px)] bg-slate-50 px-4 py-8">
       <div className="mx-auto max-w-7xl">
-        <section className="rounded-md border border-emerald-100 bg-white p-6 shadow-sm">
-          <p className="text-sm font-semibold text-emerald-700">
-            Mayabon Poribar Member Hub
-          </p>
-          <h1 className="mt-2 text-3xl font-bold text-slate-950">
-            Welcome, {displayName || "Member"}
-          </h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-            Stay connected with announcements, gatherings, shared memories, and
-            community decisions.
-          </p>
+        <section className="flex flex-col gap-6 rounded-md border border-emerald-100 bg-white p-6 shadow-sm md:flex-row md:items-center">
+          <div className="relative h-24 w-24 flex-shrink-0">
+            <img
+              src={photoURL || "/default-avatar.svg"}
+              alt={displayName}
+              className="h-full w-full rounded-full border-2 border-emerald-100 object-cover"
+            />
+            <label className="absolute bottom-0 right-0 cursor-pointer rounded-full bg-emerald-700 p-1.5 text-white shadow-md hover:bg-emerald-800">
+              {uploading ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Camera size={16} />
+              )}
+              <input
+                type="file"
+                className="hidden"
+                accept="image/*"
+                onChange={handlePhotoUpload}
+                disabled={uploading}
+              />
+            </label>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-emerald-700">
+              Mayabon Poribar Member Hub
+            </p>
+            <h1 className="mt-1 text-3xl font-bold text-slate-950">
+              Welcome, {displayName || "Member"}
+            </h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
+              Keep your profile photo updated so others can recognize you.
+              Stay connected with announcements and gatherings.
+            </p>
+          </div>
         </section>
 
         <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">

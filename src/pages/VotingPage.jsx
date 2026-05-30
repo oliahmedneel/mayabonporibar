@@ -181,7 +181,7 @@ function VotingSessionCard({ session, onSessionUpdate }) {
       // --- Send email sign-in link to the new member ---
       if (applicantEmail) {
         const actionCodeSettings = {
-          url: `${window.location.origin}/mayabonporibar/complete-signup?email=${encodeURIComponent(applicantEmail)}&memberName=${encodeURIComponent(fullName || fallbackName)}`,
+          url: `${window.location.origin}${import.meta.env.BASE_URL}#/complete-signup?email=${encodeURIComponent(applicantEmail)}&memberName=${encodeURIComponent(fullName || fallbackName)}`,
           handleCodeInApp: true,
         };
         await sendSignInLinkToEmail(auth, applicantEmail, actionCodeSettings);
@@ -222,7 +222,7 @@ function VotingSessionCard({ session, onSessionUpdate }) {
     setMessage("");
     try {
       const actionCodeSettings = {
-        url: `${window.location.origin}/mayabonporibar/complete-signup?email=${encodeURIComponent(applicantEmail)}&memberName=${encodeURIComponent(sessionData.applicant?.fullName || "")}`,
+        url: `${window.location.origin}${import.meta.env.BASE_URL}#/complete-signup?email=${encodeURIComponent(applicantEmail)}&memberName=${encodeURIComponent(sessionData.applicant?.fullName || "")}`,
         handleCodeInApp: true,
       };
       await sendSignInLinkToEmail(auth, applicantEmail, actionCodeSettings);

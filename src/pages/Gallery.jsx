@@ -12,6 +12,7 @@ import {
 import { getDownloadURL, ref, uploadBytesResumable } from "firebase/storage";
 import { db, storage } from "../config/firebase";
 import { useAuth } from "../context/AuthContext";
+import { compressImage } from "../services/imageService";
 
 const initialForm = {
   title: "",
@@ -45,42 +46,39 @@ export default function Gallery() {
     );
   }, []);
 
-  function uploadGalleryImage(photoId) {
-    return new Promise((resolve, reject) => {
-      if (!file) {
-        reject(new Error("Please choose an image to upload."));
-        return;
-      }
+  async function uploadGalleryImage() {
+    if (!file) {
+      throw new Error("Please choose an image to upload.");
+    }
 
-      if (!file.type.startsWith("image/")) {
-        reject(new Error("Only image files are allowed."));
-        return;
-      }
+    if (!file.type.startsWith("image/")) {
+      throw new Error("Only image files are allowed.");
+    }
 
-      if (file.size > 5 * 1024 * 1024) {
-        reject(new Error("Image must be smaller than 5 MB."));
-        return;
-      }
-
-      const extension = file.name.split(".").pop() || "jpg";
-      const imageRef = ref(storage, `gallery/${photoId}/photo.${extension}`);
-      const task = uploadBytesResumable(imageRef, file, {
-        contentType: file.type,
-      });
-
-      task.on(
-        "state_changed",
-        (snapshot) => {
-          const percent = Math.round((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-          setUploadProgress(percent);
-        },
-        reject,
-        async () => {
-          const downloadURL = await getDownloadURL(task.snapshot.ref);
-          resolve(downloadURL);
-        }
-      );
+    // Automatically compress image before upload
+    const compressedBlob = await compressImage(file, {
+      maxWidth: 1600,
+      maxHeight: 1600,
+      quality: 0.8,
     });
+
+    const formData = new FormData();
+    formData.append("image", compressedBlob);
+
+    const apiKey = "137614336ce818edd585fb7df6650421";
+    
+    const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+      method: "POST",
+      body: formData,
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      return result.data.url;
+    } else {
+      throw new Error(result.error?.message || "ImgBB upload failed.");
+    }
   }
 
   async function handleCreate(event) {
@@ -90,8 +88,8 @@ export default function Gallery() {
     setUploadProgress(0);
 
     try {
+      const imageURL = await uploadGalleryImage();
       const newDocRef = doc(collection(db, "gallery"));
-      const imageURL = await uploadGalleryImage(newDocRef.id);
 
       await setDoc(newDocRef, {
         title: form.title.trim(),
@@ -109,6 +107,7 @@ export default function Gallery() {
       setUploadProgress(0);
       setOpen(false);
     } catch (err) {
+      console.error("Gallery upload error:", err);
       setError(err.message || "Could not upload gallery photo.");
     } finally {
       setSubmitting(false);

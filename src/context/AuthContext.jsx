@@ -11,10 +11,21 @@ import {
   onAuthStateChanged,
   setPersistence,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
 } from "firebase/auth";
-import { doc, onSnapshot } from "firebase/firestore";
-import { auth, db } from "../config/firebase";
+import {
+  collection,
+  deleteDoc,
+  doc,
+  getDocs,
+  onSnapshot,
+  query,
+  serverTimestamp,
+  setDoc,
+  where,
+} from "firebase/firestore";
+import { auth, db, googleProvider } from "../config/firebase";
 
 export const USER_ROLES = Object.freeze({
   VISITOR: "visitor",
@@ -99,19 +110,60 @@ export function AuthProvider({ children }) {
 
         unsubscribeMember = onSnapshot(
           memberRef,
-          (snapshot) => {
-            setMember(
-              snapshot.exists()
-                ? {
-                    id: snapshot.id,
-                    uid: snapshot.id,
-                    ...snapshot.data(),
+          async (snapshot) => {
+            console.log("Member snapshot update:", snapshot.exists() ? "Exists" : "Not Found");
+            if (snapshot.exists()) {
+              const data = snapshot.data();
+              console.log("Member status:", data.status);
+              setMember({
+                id: snapshot.id,
+                uid: snapshot.id,
+                ...data,
+              });
+              setMemberLoading(false);
+            } else {
+              // If no member doc exists with the UID, check for a doc with the same email
+              try {
+                const userEmail = currentUser.email?.toLowerCase();
+                if (userEmail) {
+                  console.log("Searching for member by email:", userEmail);
+                  const q = query(
+                    collection(db, "members"),
+                    where("email", "==", userEmail)
+                  );
+                  const querySnapshot = await getDocs(q);
+
+                  if (!querySnapshot.empty) {
+                    const existingDoc = querySnapshot.docs[0];
+                    if (existingDoc.id !== currentUser.uid) {
+                      console.log("Found pre-approved member. Linking...");
+                      const memberData = existingDoc.data();
+                      
+                      // We stay in memberLoading = true state during this process
+                      await setDoc(doc(db, "members", currentUser.uid), {
+                        ...memberData,
+                        uid: currentUser.uid,
+                        linkedAt: serverTimestamp(),
+                        updatedAt: serverTimestamp(),
+                      });
+                      await deleteDoc(doc(db, "members", existingDoc.id));
+                      console.log("Linking complete. Waiting for new snapshot.");
+                      return; // The next onSnapshot trigger will handle setMemberLoading(false)
+                    }
+                  } else {
+                    console.log("No member record found for this email.");
                   }
-                : null
-            );
-            setMemberLoading(false);
+                }
+              } catch (err) {
+                console.error("Linking error:", err);
+              }
+              
+              setMember(null);
+              setMemberLoading(false);
+            }
           },
           (error) => {
+            console.error("Member snapshot error:", error);
             setAuthError(error);
             setMember(null);
             setMemberLoading(false);
@@ -141,6 +193,12 @@ export function AuthProvider({ children }) {
     return credential.user;
   }, []);
 
+  const loginWithGoogle = useCallback(async () => {
+    setAuthError(null);
+    const credential = await signInWithPopup(auth, googleProvider);
+    return credential.user;
+  }, []);
+
   const logout = useCallback(async () => {
     setAuthError(null);
     await signOut(auth);
@@ -159,6 +217,7 @@ export function AuthProvider({ children }) {
       memberLoading,
       authError,
       login,
+      loginWithGoogle,
       logout,
     }),
     [
@@ -167,6 +226,7 @@ export function AuthProvider({ children }) {
       memberLoading,
       authError,
       login,
+      loginWithGoogle,
       logout,
     ]
   );

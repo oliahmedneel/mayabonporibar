@@ -30,18 +30,24 @@ service cloud.firestore {
     }
 
     match /members/{memberId} {
-      allow read: if isActiveMember();
+      allow read: if isActiveMember() 
+        || isOwner(memberId) 
+        || (isSignedIn() && request.auth.token.email == resource.data.email);
+      
       allow create: if (isOwner(memberId)
         && request.resource.data.uid == request.auth.uid
-        && request.resource.data.role in ["general_member", "visitor"]
+        && request.resource.data.email == request.auth.token.email
         && request.resource.data.status in ["pending", "active"])
         || isAdminOrExecutive();
+
       allow update: if (isOwner(memberId)
         && request.resource.data.uid == resource.data.uid
         && request.resource.data.role == resource.data.role
         && request.resource.data.status == resource.data.status)
         || isAdminOrExecutive();
-      allow delete: if isAdminOrExecutive();
+
+      allow delete: if isAdminOrExecutive() 
+        || (isSignedIn() && resource.data.email == request.auth.token.email);
     }
 
     match /executiveCommittee/{committeeMemberId} {

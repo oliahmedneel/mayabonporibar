@@ -1,6 +1,6 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Loader2 } from "lucide-react";
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Link, Navigate, Route, Routes, useNavigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import { CommitteeRoute, MemberRoute } from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
@@ -13,6 +13,9 @@ import Login from "./pages/Login";
 import MemberDirectory from "./pages/MemberDirectory";
 import MemberProfileDetail from "./pages/MemberProfileDetail";
 import NoticeBoard from "./pages/NoticeBoard";
+import MemberManagement from "./pages/MemberManagement";
+import CommitteeManagement from "./pages/CommitteeManagement";
+import AdminMemberAdd from "./pages/AdminMemberAdd";
 
 const AdminVotingCreator = lazy(() => import("./pages/AdminVotingCreator"));
 const CommonChatRoom = lazy(() => import("./pages/CommonChatRoom"));
@@ -70,6 +73,24 @@ function LandingPage() {
   );
 }
 
+function PendingApprovalPage() {
+  const { isAuthenticated, isActiveMember } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isAuthenticated && isActiveMember) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isAuthenticated, isActiveMember, navigate]);
+
+  return (
+    <PageShell
+      title="Membership Pending"
+      subtitle="Your account exists, but your Mayabon Poribar membership is not active yet. Please wait for an admin to approve your application."
+    />
+  );
+}
+
 export default function App() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -91,12 +112,7 @@ export default function App() {
         />
         <Route
           path="/pending-approval"
-          element={
-            <PageShell
-              title="Membership Pending"
-              subtitle="Your account exists, but your Mayabon Poribar membership is not active yet."
-            />
-          }
+          element={<PendingApprovalPage />}
         />
 
         <Route element={<MemberRoute />}>
@@ -135,12 +151,37 @@ export default function App() {
           <Route
             path="/admin"
             element={
-              <PageShell
-                title="Admin Dashboard"
-                subtitle="Use the navigation to manage notices, events, gallery, and voting sessions."
-              />
+              <main className="mx-auto min-h-[calc(100vh-65px)] max-w-7xl px-4 py-10">
+                <div className="max-w-3xl">
+                  <h1 className="text-3xl font-bold tracking-tight text-slate-950">
+                    Admin Dashboard
+                  </h1>
+                  <p className="mt-3 text-base leading-7 text-slate-600">
+                    Manage members, notices, events, gallery, and voting sessions.
+                  </p>
+                  <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                    <Link
+                      to="/admin/members"
+                      className="flex flex-col rounded-md border border-slate-200 bg-white p-5 shadow-sm transition hover:border-emerald-600 hover:shadow-md"
+                    >
+                      <span className="text-lg font-bold text-slate-900">Manage Members</span>
+                      <span className="mt-1 text-sm text-slate-500">Approve users and change roles.</span>
+                    </Link>
+                    <Link
+                      to="/admin/committee"
+                      className="flex flex-col rounded-md border border-slate-200 bg-white p-5 shadow-sm transition hover:border-emerald-600 hover:shadow-md"
+                    >
+                      <span className="text-lg font-bold text-slate-900">Manage Committee</span>
+                      <span className="mt-1 text-sm text-slate-500">Assign designations and order.</span>
+                    </Link>
+                  </div>
+                </div>
+              </main>
             }
           />
+          <Route path="/admin/members" element={<MemberManagement />} />
+          <Route path="/admin/members/add" element={<AdminMemberAdd />} />
+          <Route path="/admin/committee" element={<CommitteeManagement />} />
           <Route path="/admin/notices" element={<NoticeBoard />} />
           <Route path="/admin/events" element={<EventManagement />} />
           <Route
