@@ -21,6 +21,13 @@ export default function MemberProfileDetail() {
 
   const isMyProfile = uid === memberId;
 
+  // Debugging logs
+  useEffect(() => {
+    console.log("Debug - Current UID:", uid);
+    console.log("Debug - Current MemberID:", memberId);
+    console.log("Debug - Is My Profile?:", isMyProfile);
+  }, [uid, memberId, isMyProfile]);
+
   useEffect(() => {
     if (!memberId) return undefined;
 
