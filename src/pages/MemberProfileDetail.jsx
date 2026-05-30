@@ -12,7 +12,7 @@ function dateText(value) {
 
 export default function MemberProfileDetail() {
   const { memberId } = useParams();
-  const { uid } = useAuth();
+  const { uid, authLoading } = useAuth();
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -20,13 +20,6 @@ export default function MemberProfileDetail() {
   const [bioText, setBioText] = useState("");
 
   const isMyProfile = uid === memberId;
-
-  // Debugging logs
-  useEffect(() => {
-    console.log("Debug - Current UID:", uid);
-    console.log("Debug - Current MemberID:", memberId);
-    console.log("Debug - Is My Profile?:", isMyProfile);
-  }, [uid, memberId, isMyProfile]);
 
   useEffect(() => {
     if (!memberId) return undefined;
@@ -55,7 +48,7 @@ export default function MemberProfileDetail() {
     }
   }
 
-  if (loading) {
+  if (loading || authLoading) {
     return (
       <main className="flex min-h-[calc(100vh-65px)] items-center justify-center bg-slate-50 px-4">
         <div className="flex items-center gap-2 rounded-md border border-slate-200 bg-white px-5 py-4 text-sm text-slate-500 shadow-sm">
