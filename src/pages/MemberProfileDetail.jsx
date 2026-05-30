@@ -78,7 +78,7 @@ export default function MemberProfileDetail() {
           <div className="px-6 pb-6">
             <div className="-mt-14 flex flex-col gap-5 sm:flex-row sm:items-end">
               <img
-                src={profile.photoURL || "/default-avatar.png"}
+                src={profile.photoURL || "/default-avatar.svg"}
                 alt={profile.fullName}
                 className="h-28 w-28 rounded-md border-4 border-white object-cover shadow-sm"
               />
