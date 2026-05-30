@@ -32,7 +32,7 @@ const memberLinks = [
 ];
 
 function navClass({ isActive }) {
-  return `inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition ${
+  return `inline-flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition ${
     isActive
       ? "bg-emerald-50 text-emerald-800"
       : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
