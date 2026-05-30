@@ -180,7 +180,7 @@ export default function App() {
             }
           />
           <Route path="/admin/members" element={<MemberManagement />} />
-          <Route path="/admin/members/add" element={<AdminMemberAdd />} />
+          <Route path="/admin/addmember" element={<AdminMemberAdd />} />
           <Route path="/admin/committee" element={<CommitteeManagement />} />
           <Route path="/admin/notices" element={<NoticeBoard />} />
           <Route path="/admin/events" element={<EventManagement />} />
