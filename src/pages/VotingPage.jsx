@@ -276,11 +276,11 @@ function VotingSessionCard({ session, onSessionUpdate }) {
                 {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <SquareX size={16} />} Close Voting
               </button>
             ) : closed ? (
-              <div className="flex flex-col gap-2 w-full">
-                <button type="button" disabled className="inline-flex items-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white opacity-60 cursor-not-allowed w-full">
+              <div className="flex flex-col gap-2 sm:flex-row sm:w-full">
+                <button type="button" disabled className="inline-flex items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white opacity-60 cursor-not-allowed sm:flex-1">
                   <Check size={16} /> Member Approved
                 </button>
-                <button type="button" disabled={actionLoading || sendingLinkTo === currentSession.id} onClick={() => handleResendLoginLink(currentSession)} className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition w-full">
+                <button type="button" disabled={actionLoading || sendingLinkTo === currentSession.id} onClick={() => handleResendLoginLink(currentSession)} className="inline-flex items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 transition sm:flex-1">
                   {sendingLinkTo === currentSession.id ? <Loader2 size={16} className="animate-spin" /> : <Mail size={16} />} Send Login Link
                 </button>
               </div>
