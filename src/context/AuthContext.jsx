@@ -116,9 +116,9 @@ export function AuthProvider({ children }) {
               const data = snapshot.data();
               console.log("Member status:", data.status);
               // Existing member document found. Ensure photoURL is synced from Firebase auth if missing.
-              if (!data.photoURL && firebaseUser?.photoURL) {
+              if (!data.photoURL && currentUser?.photoURL) {
                 // Update Firestore with the photoURL from Google sign-in.
-                await setDoc(doc(db, "members", currentUser.uid), { ...data, photoURL: firebaseUser.photoURL }, { merge: true });
+                await setDoc(doc(db, "members", currentUser.uid), { ...data, photoURL: currentUser.photoURL }, { merge: true });
                 console.log("Synced member photoURL from Google auth.");
               }
               setMember({
@@ -128,25 +128,51 @@ export function AuthProvider({ children }) {
               });
               setMemberLoading(false);
             } else {
-              // No member document exists for this UID. Create one using Firebase auth data.
+              // No member document exists for this UID. Check if there is a pre-created member document by email.
               try {
-                const userEmail = currentUser.email?.toLowerCase() || "";
-                const newMemberData = {
-                  uid: currentUser.uid,
-                  email: userEmail,
-                  fullName: currentUser.displayName || "",
-                  photoURL: currentUser.photoURL || "",
-                  role: USER_ROLES.VISITOR,
-                  status: "active",
-                  createdAt: serverTimestamp(),
-                  updatedAt: serverTimestamp(),
-                };
-                await setDoc(doc(db, "members", currentUser.uid), newMemberData);
-                console.log("Created new member document with photoURL from Google.");
-                // The onSnapshot listener will pick up this new document and setMember accordingly.
+                const userEmail = currentUser.email?.toLowerCase();
+                if (userEmail) {
+                  console.log("Searching for pre-created member by email:", userEmail);
+                  const q = query(
+                    collection(db, "members"),
+                    where("email", "==", userEmail)
+                  );
+                  const querySnapshot = await getDocs(q);
+
+                  if (!querySnapshot.empty) {
+                    const existingDoc = querySnapshot.docs[0];
+                    if (existingDoc.id !== currentUser.uid) {
+                      console.log("Found pre-approved member. Linking...");
+                      const memberData = existingDoc.data();
+                      
+                      // Link the account: save under currentUser.uid
+                      await setDoc(doc(db, "members", currentUser.uid), {
+                        ...memberData,
+                        uid: currentUser.uid,
+                        // Ensure photoURL is updated from Google if it is currently empty
+                        photoURL: memberData.photoURL || currentUser.photoURL || "",
+                        linkedAt: serverTimestamp(),
+                        updatedAt: serverTimestamp(),
+                      });
+                      
+                      // Delete the temporary document
+                      await deleteDoc(doc(db, "members", existingDoc.id));
+                      console.log("Linking complete. Waiting for new snapshot.");
+                      return; // The next onSnapshot trigger will handle setMemberLoading(false)
+                    }
+                  } else {
+                    console.log("No member record found for this email. Sign out.");
+                    setAuthError(new Error("আপনার ইমেইলটি নিবন্ধিত সদস্য হিসেবে তালিকাভুক্ত নয়। দয়া করে অ্যাডমিনের সাথে যোগাযোগ করুন।"));
+                    await signOut(auth);
+                  }
+                } else {
+                  setAuthError(new Error("ইমেইল ঠিকানা পাওয়া যায়নি।"));
+                  await signOut(auth);
+                }
               } catch (err) {
-                console.error("Error creating member document:", err);
+                console.error("Linking/Signout error:", err);
                 setAuthError(err);
+                await signOut(auth);
               }
               setMember(null);
               setMemberLoading(false);
