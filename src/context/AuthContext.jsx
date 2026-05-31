@@ -23,6 +23,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  updateDoc,
   where,
 } from "firebase/firestore";
 import { auth, db, googleProvider } from "../config/firebase";
@@ -77,6 +78,28 @@ export function AuthProvider({ children }) {
   const [authLoading, setAuthLoading] = useState(true);
   const [memberLoading, setMemberLoading] = useState(false);
   const [authError, setAuthError] = useState(null);
+
+  // Heartbeat: Update lastSeen every 5 minutes if member is active
+  useEffect(() => {
+    if (!firebaseUser || !member || member.status !== "active") return;
+
+    const updateLastSeen = async () => {
+      try {
+        await updateDoc(doc(db, "members", firebaseUser.uid), {
+          lastSeen: serverTimestamp()
+        });
+        console.log("Heartbeat: updated lastSeen");
+      } catch (err) {
+        console.warn("Heartbeat failed:", err);
+      }
+    };
+    
+    // Initial update
+    updateLastSeen();
+
+    const interval = setInterval(updateLastSeen, 5 * 60 * 1000); // 5 minutes
+    return () => clearInterval(interval);
+  }, [firebaseUser, member?.id, member?.status]);
 
   useEffect(() => {
     let unsubscribeMember = null;

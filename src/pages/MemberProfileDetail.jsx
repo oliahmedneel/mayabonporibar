@@ -10,6 +10,21 @@ function dateText(value) {
   return date ? date.toLocaleDateString([], { dateStyle: "medium" }) : "Not available";
 }
 
+function getOnlineStatus(lastSeen) {
+  if (!lastSeen) return { isOnline: false, text: "Never" };
+  const lastSeenDate = lastSeen.toDate ? lastSeen.toDate() : new Date(lastSeen);
+  const diffInMinutes = (new Date() - lastSeenDate) / (1000 * 60);
+  
+  if (diffInMinutes < 5.5) {
+    return { isOnline: true, text: "Online" };
+  }
+  
+  return { 
+    isOnline: false, 
+    text: lastSeenDate.toLocaleString([], { dateStyle: "medium", timeStyle: "short" }) 
+  };
+}
+
 export default function MemberProfileDetail() {
   const { memberId } = useParams();
   const { uid, authLoading } = useAuth();
@@ -20,6 +35,7 @@ export default function MemberProfileDetail() {
   const [bioText, setBioText] = useState("");
 
   const isMyProfile = uid === memberId;
+  const status = profile ? getOnlineStatus(profile.lastSeen) : null;
 
   useEffect(() => {
     if (!memberId) return undefined;
@@ -94,15 +110,25 @@ export default function MemberProfileDetail() {
           <div className="h-28 bg-emerald-700" />
           <div className="px-6 pb-6">
             <div className="-mt-14 flex flex-col gap-5 sm:flex-row sm:items-end">
-              <img
-                src={profile.photoURL || `${import.meta.env.BASE_URL}default-avatar.svg`}
-                alt={profile.fullName}
-                className="h-28 w-28 rounded-md border-4 border-white object-cover shadow-sm"
-              />
+              <div className="relative h-28 w-28 shrink-0">
+                <img
+                  src={profile.photoURL || `${import.meta.env.BASE_URL}default-avatar.svg`}
+                  alt={profile.fullName}
+                  className="h-full w-full rounded-md border-4 border-white object-cover shadow-sm"
+                />
+                {status?.isOnline && (
+                  <span className="absolute -right-1 -top-1 h-4 w-4 rounded-full border-2 border-white bg-emerald-500 shadow-md"></span>
+                )}
+              </div>
               <div className="min-w-0 pb-1">
-                <p className="inline-flex rounded-md bg-emerald-50 px-2 py-1 text-xs font-bold capitalize text-emerald-800">
-                  {(profile.role || "general_member").replace("_", " ")}
-                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="inline-flex rounded-md bg-emerald-50 px-2 py-1 text-xs font-bold capitalize text-emerald-800">
+                    {(profile.role || "general_member").replace("_", " ")}
+                  </p>
+                  <span className={`text-xs font-semibold ${status?.isOnline ? "text-emerald-600" : "text-slate-400"}`}>
+                    {status?.isOnline ? "• Online Now" : `Last seen: ${status?.text}`}
+                  </span>
+                </div>
                 <h1 className="mt-2 text-3xl font-extrabold text-slate-950">
                   {profile.fullName}
                 </h1>

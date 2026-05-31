@@ -17,21 +17,48 @@ function sortByCreatedAtDesc(a, b) {
   return bTime - aTime;
 }
 
+function getOnlineStatus(lastSeen) {
+  if (!lastSeen) return { isOnline: false, text: "Never" };
+  const lastSeenDate = lastSeen.toDate ? lastSeen.toDate() : new Date(lastSeen);
+  const diffInMinutes = (new Date() - lastSeenDate) / (1000 * 60);
+  
+  if (diffInMinutes < 5.5) {
+    return { isOnline: true, text: "Online" };
+  }
+  
+  return { 
+    isOnline: false, 
+    text: lastSeenDate.toLocaleString([], { dateStyle: "short", timeStyle: "short" }) 
+  };
+}
+
 function MemberCard({ member }) {
+  const status = getOnlineStatus(member.lastSeen);
+
   return (
-    <Link to={`/members/${member.id}`} className="block rounded-md border border-slate-200 bg-white p-5 shadow-sm transition hover:border-emerald-300 hover:shadow">
+    <Link to={`/members/${member.id}`} className="block rounded-md border border-slate-200 bg-white p-5 shadow-sm transition hover:border-emerald-300 hover:shadow relative">
       <div className="flex items-start gap-4">
-        <img
-          src={member.photoURL || `${import.meta.env.BASE_URL}default-avatar.svg`}
-          alt={member.fullName}
-          className="h-16 w-16 rounded-md border border-slate-200 object-cover"
-        />
+        <div className="relative">
+          <img
+            src={member.photoURL || `${import.meta.env.BASE_URL}default-avatar.svg`}
+            alt={member.fullName}
+            className="h-16 w-16 rounded-md border border-slate-200 object-cover"
+          />
+          {status.isOnline && (
+            <span className="absolute -right-1 -top-1 h-3.5 w-3.5 rounded-full border-2 border-white bg-emerald-500 shadow-sm"></span>
+          )}
+        </div>
         <div className="min-w-0">
           <h2 className="truncate font-bold text-slate-950">{member.fullName}</h2>
           {member.banglaName && <p className="mt-1 text-sm text-slate-500">{member.banglaName}</p>}
-          <p className="mt-2 inline-flex rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold capitalize text-slate-600">
-            {(member.role || "member").replace("_", " ")}
-          </p>
+          <div className="mt-2 flex items-center gap-2">
+            <p className="inline-flex rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold capitalize text-slate-600">
+              {(member.role || "member").replace("_", " ")}
+            </p>
+            <span className={`text-[10px] font-medium ${status.isOnline ? "text-emerald-600" : "text-slate-400"}`}>
+              {status.isOnline ? "Online" : `Last seen: ${status.text}`}
+            </span>
+          </div>
         </div>
       </div>
       {member.bio && <p className="mt-4 line-clamp-3 text-sm leading-6 text-slate-600">{member.bio}</p>}
