@@ -115,6 +115,12 @@ export function AuthProvider({ children }) {
             if (snapshot.exists()) {
               const data = snapshot.data();
               console.log("Member status:", data.status);
+              // Existing member document found. Ensure photoURL is synced from Firebase auth if missing.
+              if (!data.photoURL && firebaseUser?.photoURL) {
+                // Update Firestore with the photoURL from Google sign-in.
+                await setDoc(doc(db, "members", currentUser.uid), { ...data, photoURL: firebaseUser.photoURL }, { merge: true });
+                console.log("Synced member photoURL from Google auth.");
+              }
               setMember({
                 id: snapshot.id,
                 uid: snapshot.id,
@@ -122,42 +128,26 @@ export function AuthProvider({ children }) {
               });
               setMemberLoading(false);
             } else {
-              // If no member doc exists with the UID, check for a doc with the same email
+              // No member document exists for this UID. Create one using Firebase auth data.
               try {
-                const userEmail = currentUser.email?.toLowerCase();
-                if (userEmail) {
-                  console.log("Searching for member by email:", userEmail);
-                  const q = query(
-                    collection(db, "members"),
-                    where("email", "==", userEmail)
-                  );
-                  const querySnapshot = await getDocs(q);
-
-                  if (!querySnapshot.empty) {
-                    const existingDoc = querySnapshot.docs[0];
-                    if (existingDoc.id !== currentUser.uid) {
-                      console.log("Found pre-approved member. Linking...");
-                      const memberData = existingDoc.data();
-                      
-                      // We stay in memberLoading = true state during this process
-                      await setDoc(doc(db, "members", currentUser.uid), {
-                        ...memberData,
-                        uid: currentUser.uid,
-                        linkedAt: serverTimestamp(),
-                        updatedAt: serverTimestamp(),
-                      });
-                      await deleteDoc(doc(db, "members", existingDoc.id));
-                      console.log("Linking complete. Waiting for new snapshot.");
-                      return; // The next onSnapshot trigger will handle setMemberLoading(false)
-                    }
-                  } else {
-                    console.log("No member record found for this email.");
-                  }
-                }
+                const userEmail = currentUser.email?.toLowerCase() || "";
+                const newMemberData = {
+                  uid: currentUser.uid,
+                  email: userEmail,
+                  fullName: currentUser.displayName || "",
+                  photoURL: currentUser.photoURL || "",
+                  role: USER_ROLES.VISITOR,
+                  status: "active",
+                  createdAt: serverTimestamp(),
+                  updatedAt: serverTimestamp(),
+                };
+                await setDoc(doc(db, "members", currentUser.uid), newMemberData);
+                console.log("Created new member document with photoURL from Google.");
+                // The onSnapshot listener will pick up this new document and setMember accordingly.
               } catch (err) {
-                console.error("Linking error:", err);
+                console.error("Error creating member document:", err);
+                setAuthError(err);
               }
-              
               setMember(null);
               setMemberLoading(false);
             }

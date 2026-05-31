@@ -55,11 +55,9 @@ export default function Navbar() {
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 backdrop-blur">
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
         <Link to="/" className="flex min-w-0 items-center gap-3">
-          <img
-            src={`${import.meta.env.BASE_URL}favicon.svg`}
-            alt="Mayabon Poribar"
-            className="h-10 w-10 shrink-0 rounded-md object-cover shadow-sm"
-          />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-emerald-700 text-sm font-bold text-white shadow-sm">
+            MP
+          </div>
           <div className="min-w-0">
             <p className="truncate text-sm font-bold text-slate-950">
               Mayabon Poribar
