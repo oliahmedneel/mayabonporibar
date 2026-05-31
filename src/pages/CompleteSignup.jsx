@@ -7,7 +7,7 @@ import {
   signInWithEmailLink,
   updatePassword,
 } from "firebase/auth";
-import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { doc, updateDoc, serverTimestamp, collection, query, where, getDocs, setDoc, deleteDoc, limit } from "firebase/firestore";
 
 export default function CompleteSignup() {
   const [searchParams] = useSearchParams();
@@ -94,12 +94,44 @@ export default function CompleteSignup() {
       // Set the password on the existing Auth record
       await updatePassword(currentUser, password);
 
-      // Update Firestore member document
-      await updateDoc(doc(db, "members", currentUser.uid), {
-        emailVerified: true,
-        authMethod: "email_password",
-        updatedAt: serverTimestamp(),
-      });
+      // 1. Find existing member document by email
+      const q = query(collection(db, "members"), where("email", "==", email), limit(1));
+      const querySnapshot = await getDocs(q);
+      
+      let memberData = {};
+      let oldDocId = null;
+
+      if (!querySnapshot.empty) {
+        const memberDoc = querySnapshot.docs[0];
+        memberData = memberDoc.data();
+        oldDocId = memberDoc.id;
+      }
+
+      // 2. Update/Create member document with actual UID as ID
+      // If we found an old document with a different ID, we "migrate" it
+      if (oldDocId && oldDocId !== currentUser.uid) {
+        await setDoc(doc(db, "members", currentUser.uid), {
+          ...memberData,
+          uid: currentUser.uid,
+          memberId: currentUser.uid,
+          emailVerified: true,
+          authMethod: "email_password",
+          updatedAt: serverTimestamp(),
+        });
+        // Delete the old temporary document
+        await deleteDoc(doc(db, "members", oldDocId));
+      } else {
+        // Just update or create if it doesn't exist
+        await setDoc(doc(db, "members", currentUser.uid), {
+          ...memberData,
+          uid: currentUser.uid,
+          memberId: currentUser.uid,
+          email: email,
+          emailVerified: true,
+          authMethod: "email_password",
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+      }
 
       setMode("done");
       setMessage("Password set successfully! You are now signed in.");

@@ -32,7 +32,8 @@ service cloud.firestore {
     match /members/{memberId} {
       allow read: if isActiveMember() 
         || isOwner(memberId) 
-        || (isSignedIn() && request.auth.token.email == resource.data.email);
+        || (isSignedIn() && request.auth.token.email == resource.data.email)
+        || (request.auth == null && request.query.limit == 1);
       
       allow create: if (isOwner(memberId)
         && request.resource.data.uid == request.auth.uid

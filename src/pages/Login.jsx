@@ -3,7 +3,7 @@ import { Loader2, LogIn, KeyRound, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { auth, db } from "../config/firebase";
-import { collection, query, where, getDocs } from "firebase/firestore";
+import { collection, query, where, getDocs, limit } from "firebase/firestore";
 import { sendSignInLinkToEmail } from "firebase/auth";
 
 export default function Login() {
@@ -18,6 +18,7 @@ export default function Login() {
   } = useAuth();
   const [submitting, setSubmitting] = useState(false);
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
+  const [localError, setLocalError] = useState("");
 
   // Activation states
   const [isActivating, setIsActivating] = useState(false);
@@ -35,6 +36,7 @@ export default function Login() {
   async function handleSubmit(event) {
     event.preventDefault();
     setSubmitting(true);
+    setLocalError("");
 
     const formData = new FormData(event.currentTarget);
 
@@ -42,7 +44,17 @@ export default function Login() {
       await login(formData.get("email"), formData.get("password"));
       navigate("/dashboard", { replace: true });
     } catch (error) {
-      // Error is handled by AuthContext
+      // Show user-friendly error based on Firebase error code
+      const code = error?.code || "";
+      if (code === "auth/user-not-found" || code === "auth/invalid-credential") {
+        setLocalError("এই ইমেইল দিয়ে কোনো অ্যাকাউন্ট পাওয়া যায়নি। আপনি কি প্রথমে 'Activate Account' দিয়ে পাসওয়ার্ড সেট করেছেন?");
+      } else if (code === "auth/wrong-password") {
+        setLocalError("পাসওয়ার্ড সঠিক নয়। আবার চেষ্টা করুন।");
+      } else if (code === "auth/too-many-requests") {
+        setLocalError("অনেকবার ভুল চেষ্টা করা হয়েছে। কিছুক্ষণ পর আবার চেষ্টা করুন।");
+      } else {
+        setLocalError(error.message || "লগইন ব্যর্থ হয়েছে।");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -70,7 +82,7 @@ export default function Login() {
 
     try {
       // 1. Check if the user exists in members collection
-      const q = query(collection(db, "members"), where("email", "==", email));
+      const q = query(collection(db, "members"), where("email", "==", email), limit(1));
       const querySnapshot = await getDocs(q);
 
       if (querySnapshot.empty) {
@@ -214,9 +226,9 @@ export default function Login() {
             </div>
           </div>
 
-          {authError && (
+          {(localError || authError) && (
             <p className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
-              {authError.message}
+              {localError || authError?.message}
             </p>
           )}
 
