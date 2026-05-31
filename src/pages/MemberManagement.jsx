@@ -1,4 +1,4 @@
-import { Loader2, ShieldCheck, UserCog, UserMinus, UserPlus, Search } from "lucide-react";
+import { Loader2, ShieldCheck, UserCog, UserMinus, UserPlus, Search, Edit3, X, Save } from "lucide-react";
 import { useEffect, useState } from "react";
 import { collection, doc, onSnapshot, updateDoc, query, orderBy } from "firebase/firestore";
 import { Link } from "react-router-dom";
@@ -13,6 +13,10 @@ export default function MemberManagement() {
   const [error, setError] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [updatingId, setUpdatingId] = useState(null);
+  
+  // Edit modal state
+  const [editingMember, setEditingMember] = useState(null);
+  const [contributionText, setContributionText] = useState("");
 
   useEffect(() => {
     const q = query(collection(db, "members"), orderBy("fullName", "asc"));
@@ -33,6 +37,9 @@ export default function MemberManagement() {
     setUpdatingId(uid);
     try {
       await updateDoc(doc(db, "members", uid), data);
+      if (editingMember && editingMember.id === uid) {
+        setEditingMember(null);
+      }
     } catch (err) {
       alert("Failed to update member: " + err.message);
     } finally {
@@ -143,11 +150,21 @@ export default function MemberManagement() {
                     </select>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    {updatingId === m.id ? (
-                      <Loader2 className="ml-auto h-4 w-4 animate-spin text-emerald-600" />
-                    ) : (
-                      <span className="text-slate-400">---</span>
-                    )}
+                    <div className="flex items-center justify-end gap-2">
+                      <button
+                        title="Edit Contribution"
+                        onClick={() => {
+                          setEditingMember(m);
+                          setContributionText(m.contribution || m.contributions || "");
+                        }}
+                        className="rounded-md p-1.5 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 transition"
+                      >
+                        <Edit3 size={18} />
+                      </button>
+                      {updatingId === m.id && (
+                        <Loader2 className="h-4 w-4 animate-spin text-emerald-600" />
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -155,6 +172,57 @@ export default function MemberManagement() {
           </table>
         </div>
       </div>
+
+      {/* Edit Contribution Modal */}
+      {editingMember && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl animate-in fade-in zoom-in duration-200">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <h2 className="text-xl font-bold text-slate-900">Edit Contribution</h2>
+              <button
+                onClick={() => setEditingMember(null)}
+                className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="mt-4">
+              <p className="text-sm font-semibold text-slate-700">Member: {editingMember.fullName}</p>
+              <div className="mt-4">
+                <label className="mb-1 block text-sm font-semibold text-slate-600">
+                  Community Contribution Detail
+                </label>
+                <textarea
+                  className="min-h-[150px] w-full rounded-md border border-slate-300 p-3 text-sm text-slate-700 outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600"
+                  placeholder="Describe this member's contributions to Mayabon Poribar..."
+                  value={contributionText}
+                  onChange={(e) => setContributionText(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center gap-3">
+              <button
+                disabled={updatingId === editingMember.id}
+                onClick={() => updateMember(editingMember.id, { contribution: contributionText })}
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 transition disabled:opacity-50"
+              >
+                {updatingId === editingMember.id ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                Save Changes
+              </button>
+              <button
+                disabled={updatingId === editingMember.id}
+                onClick={() => setEditingMember(null)}
+                className="flex-1 rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition disabled:opacity-50"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
+
