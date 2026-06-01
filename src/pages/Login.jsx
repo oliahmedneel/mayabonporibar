@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, LogIn, KeyRound, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useAuth, isInAppBrowser } from "../context/AuthContext";
 import { auth, db } from "../config/firebase";
 import { collection, query, where, getDocs, limit } from "firebase/firestore";
 import { sendSignInLinkToEmail } from "firebase/auth";
@@ -16,6 +16,8 @@ export default function Login() {
     isAuthenticated,
     isActiveMember,
   } = useAuth();
+  
+  const [showInAppWarning, setShowInAppWarning] = useState(isInAppBrowser());
   const [submitting, setSubmitting] = useState(false);
   const [googleSubmitting, setGoogleSubmitting] = useState(false);
   const [localError, setLocalError] = useState("");
@@ -195,6 +197,31 @@ export default function Login() {
             Sign in to access the member dashboard, chat, voting, notices, events,
             and gallery.
           </p>
+
+          {showInAppWarning && (
+            <div className="mt-4 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800 shadow-sm">
+              <p className="flex items-center gap-2 font-bold text-amber-900">
+                <span>⚠️</span> Embedded Browser Detected
+              </p>
+              <p className="mt-2 leading-relaxed">
+                আপনার ব্রাউজারটি (যেমন: Messenger/Facebook) Google লগইন সাপোর্ট করছে না। সঠিক অভিজ্ঞতার জন্য:
+              </p>
+              <ol className="mt-2 list-inside list-decimal space-y-1">
+                <li>উপরে ডানদিকে ৩টি ডট (⋮) এ ক্লিক করুন।</li>
+                <li>"Open in Browser" বা "Open in Chrome/Safari" নির্বাচন করুন।</li>
+              </ol>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(window.location.href);
+                  alert("লিংক কপি হয়েছে। এখন আপনার ব্রাউজারে পেস্ট করুন।");
+                }}
+                className="mt-4 w-full rounded-md bg-amber-200 px-3 py-2 text-xs font-bold uppercase tracking-wider text-amber-950 transition hover:bg-amber-300"
+              >
+                Copy Website Link
+              </button>
+            </div>
+          )}
 
           <div className="mt-6 space-y-4">
             <div>
