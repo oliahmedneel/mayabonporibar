@@ -41,13 +41,16 @@ service cloud.firestore {
         && request.resource.data.status in ["pending", "active"])
         || isAdminOrExecutive();
 
-      allow update: if (isOwner(memberId)
-      && request.resource.data.uid == resource.data.uid
-      && request.resource.data.role == resource.data.role
-      && request.resource.data.status == resource.data.status
-      && request.resource.data.bio is string)
-      || isAdminOrExecutive()
-      || (isOwner(memberId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastSeen']));
+      allow update: if isAdminOrExecutive()
+      || (isOwner(memberId) && (
+        // Allow updating full profile
+        (request.resource.data.uid == resource.data.uid
+         && request.resource.data.role == resource.data.role
+         && request.resource.data.status == resource.data.status
+         && request.resource.data.bio is string)
+        // Allow updating ONLY lastSeen
+        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastSeen'])
+      ));
 
       allow delete: if isAdminOrExecutive() 
         || (isSignedIn() && resource.data.email == request.auth.token.email);
