@@ -15,7 +15,7 @@ function getOnlineStatus(lastSeen) {
   const lastSeenDate = lastSeen.toDate ? lastSeen.toDate() : new Date(lastSeen);
   const diffInMinutes = (new Date() - lastSeenDate) / (1000 * 60);
   
-  if (diffInMinutes < 5.5) {
+  if (diffInMinutes < 5) {
     return { isOnline: true, text: "Online" };
   }
   
