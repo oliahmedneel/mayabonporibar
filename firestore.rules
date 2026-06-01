@@ -43,9 +43,7 @@ service cloud.firestore {
 
       allow update: if isAdminOrExecutive()
       || (isOwner(memberId) && (
-        request.resource.data.uid == resource.data.uid
-        && request.resource.data.role == resource.data.role
-        && request.resource.data.status == resource.data.status
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['uid', 'role', 'status'])
       ));
 
       allow delete: if isAdminOrExecutive() 
