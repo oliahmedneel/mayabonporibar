@@ -48,8 +48,8 @@ service cloud.firestore {
          && request.resource.data.role == resource.data.role
          && request.resource.data.status == resource.data.status
          && request.resource.data.bio is string)
-        // Allow updating ONLY lastSeen
-        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastSeen'])
+        // Allow updating lastSeen
+        || request.resource.data.keys().hasOnly(['lastSeen'])
       ));
 
       allow delete: if isAdminOrExecutive() 
