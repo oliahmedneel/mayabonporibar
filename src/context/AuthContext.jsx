@@ -8,10 +8,12 @@ import {
 } from "react";
 import {
   browserLocalPersistence,
+  getRedirectResult,
   onAuthStateChanged,
   setPersistence,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
 } from "firebase/auth";
 import {
@@ -36,6 +38,18 @@ export const USER_ROLES = Object.freeze({
 });
 
 const AuthContext = createContext(null);
+
+// Utility to detect in-app browsers (like Messenger, WhatsApp, Instagram)
+export const isInAppBrowser = () => {
+  const ua = navigator.userAgent || navigator.vendor || window.opera;
+  return (
+    ua.indexOf("FBAN") > -1 ||
+    ua.indexOf("FBAV") > -1 ||
+    ua.indexOf("Instagram") > -1 ||
+    ua.indexOf("Messenger") > -1 ||
+    ua.indexOf("WhatsApp") > -1
+  );
+};
 
 function normalizeRole(role) {
   if (Object.values(USER_ROLES).includes(role)) {
@@ -79,8 +93,11 @@ export function AuthProvider({ children }) {
   const [memberLoading, setMemberLoading] = useState(false);
   const [authError, setAuthError] = useState(null);
 
-  // Heartbeat: Update lastSeen every 5 minutes if member is active
+  // Heartbeat: Update lastSeen every 1 minute if member is active
   useEffect(() => {
+    // ডিবাগিং লগ
+    console.log("Heartbeat Effect triggered. User:", firebaseUser?.uid, "Member:", member?.id, "Status:", member?.status);
+
     if (!firebaseUser || !member || member.status !== "active") return;
 
     const updateLastSeen = async () => {
@@ -97,9 +114,9 @@ export function AuthProvider({ children }) {
     // Initial update
     updateLastSeen();
 
-    const interval = setInterval(updateLastSeen, 5 * 60 * 1000); // 5 minutes
+    const interval = setInterval(updateLastSeen, 60 * 1000); // 1 minute
     return () => clearInterval(interval);
-  }, [firebaseUser, member?.id, member?.status]);
+  }, [firebaseUser?.uid, member?.id, member?.status]);
 
   useEffect(() => {
     let unsubscribeMember = null;
@@ -234,8 +251,33 @@ export function AuthProvider({ children }) {
 
   const loginWithGoogle = useCallback(async () => {
     setAuthError(null);
-    const credential = await signInWithPopup(auth, googleProvider);
-    return credential.user;
+    try {
+      // Use redirect for in-app browsers as popups are usually blocked
+      if (isInAppBrowser()) {
+        await signInWithRedirect(auth, googleProvider);
+      } else {
+        const credential = await signInWithPopup(auth, googleProvider);
+        return credential.user;
+      }
+    } catch (error) {
+      console.error("Google login error:", error);
+      setAuthError(error);
+      throw error;
+    }
+  }, []);
+
+  useEffect(() => {
+    // Handle the result of a sign-in redirect
+    getRedirectResult(auth)
+      .then((result) => {
+        if (result?.user) {
+          console.log("Successfully signed in via redirect");
+        }
+      })
+      .catch((error) => {
+        console.error("Error handling redirect result:", error);
+        setAuthError(error);
+      });
   }, []);
 
   const logout = useCallback(async () => {
