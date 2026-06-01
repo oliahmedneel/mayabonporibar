@@ -43,16 +43,10 @@ service cloud.firestore {
 
       allow update: if isAdminOrExecutive()
       || (isOwner(memberId) && (
-        // Allow updating full profile
-        (request.resource.data.uid == resource.data.uid
-         && request.resource.data.role == resource.data.role
-         && request.resource.data.status == resource.data.status
-         && request.resource.data.bio is string)
-        // Allow updating lastSeen (more permissive)
-        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastSeen'])
-      ))
-      // Explicitly allow lastSeen update if it's the only change
-      || (isOwner(memberId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastSeen']));
+        request.resource.data.uid == resource.data.uid
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.status == resource.data.status
+      ));
 
       allow delete: if isAdminOrExecutive() 
         || (isSignedIn() && resource.data.email == request.auth.token.email);
