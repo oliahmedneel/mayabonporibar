@@ -202,11 +202,11 @@ export function AuthProvider({ children }) {
                     }
                   } else {
                     console.log("No member record found for this email. Sign out.");
-                    setAuthError(new Error("আপনার ইমেইলটি নিবন্ধিত সদস্য হিসেবে তালিকাভুক্ত নয়। দয়া করে অ্যাডমিনের সাথে যোগাযোগ করুন।"));
+                    setAuthError(new Error("আপনার ইমেইলটি নিবন্ধিত সদস্য হিসেবে তালিকাভুক্ত নয়। দয়া করে যোগাযোগ করুন প্রশাসকদের সাথে।"));
                     await signOut(auth);
                   }
                 } else {
-                  setAuthError(new Error("ইমেইল ঠিকানা পাওয়া যায়নি।"));
+                  setAuthError(new Error("ইমেইল ঠিকানা পাওয়া যায়নি।"));
                   await signOut(auth);
                 }
               } catch (err) {
