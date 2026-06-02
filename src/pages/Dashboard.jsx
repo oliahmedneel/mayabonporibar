@@ -24,6 +24,7 @@ import {
 import { db } from "../config/firebase";
 import { useAuth } from "../context/AuthContext";
 import { compressImage } from "../services/imageService";
+import { isEventExpired, syncExpiredEventsToClosed } from "../services/eventService";
 
 const shortcuts = [
   { to: "/members", label: "Member Directory", icon: Users },
@@ -43,6 +44,7 @@ export default function Dashboard() {
   const [notices, setNotices] = useState([]);
   const [events, setEvents] = useState([]);
   const [uploading, setUploading] = useState(false);
+  const [clockTick, setClockTick] = useState(0);
 
   async function handlePhotoUpload(e) {
     const file = e.target.files?.[0];
@@ -107,11 +109,29 @@ export default function Dashboard() {
       setEvents(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
     });
 
+    void syncExpiredEventsToClosed().catch((err) => {
+      console.warn("Initial dashboard event close sync failed:", err);
+    });
+
+    const interval = setInterval(() => {
+      void syncExpiredEventsToClosed().catch((err) => {
+        console.warn("Scheduled dashboard event close sync failed:", err);
+      });
+    }, 60 * 1000);
+
+    const clockInterval = setInterval(() => {
+      setClockTick((value) => value + 1);
+    }, 60 * 1000);
+
     return () => {
       unsubNotices();
       unsubEvents();
+      clearInterval(interval);
+      clearInterval(clockInterval);
     };
   }, []);
+
+  const upcomingEvents = events.filter((event) => !isEventExpired(event) && clockTick >= 0);
 
   return (
     <main className="min-h-[calc(100vh-65px)] bg-slate-50 px-4 py-8">
@@ -211,10 +231,10 @@ export default function Dashboard() {
               </Link>
             </div>
             <div className="mt-4 space-y-3">
-              {events.length === 0 && (
+              {upcomingEvents.length === 0 && (
                 <p className="text-sm text-slate-500">No upcoming events yet.</p>
               )}
-              {events.map((event) => (
+              {upcomingEvents.map((event) => (
                 <article key={event.id} className="rounded-md bg-slate-50 p-4">
                   <h3 className="font-semibold text-slate-950">{event.title}</h3>
                   <p className="mt-1 flex items-center gap-2 text-sm text-slate-500">

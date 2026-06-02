@@ -1,4 +1,4 @@
-import { CalendarDays, CheckCircle2, Loader2, MapPin, Plus, UserX, X } from "lucide-react";
+import { CalendarDays, CheckCircle2, ImagePlus, Loader2, MapPin, Plus, UserX, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   addDoc,
@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../config/firebase";
 import { useAuth } from "../context/AuthContext";
+import { closeExpiredEvents, isEventExpired, syncExpiredEventsToClosed, uploadEventCoverImage } from "../services/eventService";
 
 function dateText(value) {
   const date = value?.toDate?.();
@@ -21,6 +22,7 @@ function dateText(value) {
 
 function EventCard({ item, member, onRsvp }) {
   const [rsvps, setRsvps] = useState([]);
+  const isClosed = isEventExpired(item);
 
   useEffect(() => {
     return onSnapshot(collection(db, "events", item.id, "rsvps"), (snapshot) => {
@@ -42,6 +44,7 @@ function EventCard({ item, member, onRsvp }) {
   );
 
   const myRsvp = rsvps.find((rsvp) => rsvp.id === member?.uid)?.response;
+  const canRespond = Boolean(member && !isClosed);
 
   return (
     <article className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
@@ -55,7 +58,16 @@ function EventCard({ item, member, onRsvp }) {
         )}
       </div>
       <div className="p-5">
-        <h2 className="text-lg font-bold text-slate-950">{item.title}</h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-lg font-bold text-slate-950">{item.title}</h2>
+          <span
+            className={`inline-flex rounded-md px-2 py-1 text-xs font-semibold ${
+              isClosed ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"
+            }`}
+          >
+            {isClosed ? "Closed" : "Open"}
+          </span>
+        </div>
         <div className="mt-3 space-y-2 text-sm text-slate-500">
           <p className="flex items-center gap-2"><CalendarDays size={16} />{dateText(item.eventDate)}</p>
           <p className="flex items-center gap-2"><MapPin size={16} />{item.location || "Location pending"}</p>
@@ -73,17 +85,30 @@ function EventCard({ item, member, onRsvp }) {
           </div>
         </div>
 
-        {myRsvp && (
+        {myRsvp && !isClosed && (
           <p className="mt-3 rounded-md bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
             Your RSVP: {myRsvp === "going" ? "Going" : "Not Going"}
           </p>
         )}
+        {isClosed && (
+          <p className="mt-3 rounded-md bg-red-50 px-3 py-2 text-xs font-semibold text-red-800">
+            This event is closed because the event time has passed.
+          </p>
+        )}
 
         <div className="mt-5 flex gap-2">
-          <button onClick={() => onRsvp(item.id, "going")} className="flex-1 rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800">
+          <button
+            onClick={() => onRsvp(item.id, "going")}
+            disabled={!canRespond}
+            className="flex-1 rounded-md bg-emerald-700 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+          >
             Going
           </button>
-          <button onClick={() => onRsvp(item.id, "not_going")} className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
+          <button
+            onClick={() => onRsvp(item.id, "not_going")}
+            disabled={!canRespond}
+            className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+          >
             Not Going
           </button>
         </div>
@@ -98,44 +123,79 @@ export default function EventManagement() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [open, setOpen] = useState(false);
+  const [coverFile, setCoverFile] = useState(null);
   const [form, setForm] = useState({
     title: "",
     description: "",
     location: "",
     eventDate: "",
-    coverImageURL: "",
   });
 
   useEffect(() => {
     const eventsQuery = query(collection(db, "events"), orderBy("eventDate", "asc"));
-    return onSnapshot(
+  const unsubscribe = onSnapshot(
       eventsQuery,
-      (snapshot) => {
-        setEvents(snapshot.docs.map((item) => ({ id: item.id, ...item.data() })));
+      async (snapshot) => {
+        const nextEvents = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+        setEvents(nextEvents);
         setLoading(false);
+
+        try {
+          await closeExpiredEvents(nextEvents);
+        } catch (closeError) {
+          console.warn("Unable to auto-close expired events:", closeError);
+        }
       },
       (err) => {
         setError(err.message);
         setLoading(false);
       }
     );
+
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    void syncExpiredEventsToClosed().catch((err) => {
+      console.warn("Initial event close sync failed:", err);
+    });
+
+    const interval = setInterval(() => {
+      void syncExpiredEventsToClosed().catch((err) => {
+        console.warn("Scheduled event close sync failed:", err);
+      });
+    }, 60 * 1000);
+
+    return () => clearInterval(interval);
   }, []);
 
   async function handleCreate(event) {
     event.preventDefault();
-    await addDoc(collection(db, "events"), {
-      title: form.title.trim(),
-      description: form.description.trim(),
-      location: form.location.trim(),
-      eventDate: Timestamp.fromDate(new Date(form.eventDate)),
-      coverImageURL: form.coverImageURL.trim(),
-      createdBy: member.uid,
-      createdByName: member.fullName || "",
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
-    setForm({ title: "", description: "", location: "", eventDate: "", coverImageURL: "" });
-    setOpen(false);
+    setError("");
+    try {
+      const coverImageURL = coverFile ? await uploadEventCoverImage(coverFile) : "";
+
+      await addDoc(collection(db, "events"), {
+        title: form.title.trim(),
+        description: form.description.trim(),
+        location: form.location.trim(),
+        eventDate: Timestamp.fromDate(new Date(form.eventDate)),
+        coverImageURL,
+        status: "active",
+        createdBy: member.uid,
+        createdByName: member.fullName || "",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        closedAt: null,
+        closedReason: "",
+      });
+
+      setForm({ title: "", description: "", location: "", eventDate: "" });
+      setCoverFile(null);
+      setOpen(false);
+    } catch (err) {
+      setError(err.message || "Could not create event.");
+    }
   }
 
   async function handleRsvp(eventId, response) {
@@ -200,8 +260,20 @@ export default function EventManagement() {
               <input required value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder="Event title" className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-600" />
               <input required type="datetime-local" value={form.eventDate} onChange={(event) => setForm((current) => ({ ...current, eventDate: event.target.value }))} className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-600" />
               <input value={form.location} onChange={(event) => setForm((current) => ({ ...current, location: event.target.value }))} placeholder="Location" className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-600" />
-              <input value={form.coverImageURL} onChange={(event) => setForm((current) => ({ ...current, coverImageURL: event.target.value }))} placeholder="Cover image URL" className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-600" />
               <textarea required rows={4} value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} placeholder="Description" className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-600" />
+              <label className="flex cursor-pointer items-center gap-3 rounded-md border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-sm text-slate-600 hover:border-emerald-400">
+                <ImagePlus size={20} className="text-emerald-700" />
+                <span className="min-w-0 truncate">
+                  {coverFile ? coverFile.name : "Choose cover image"}
+                </span>
+                <input
+                  required
+                  type="file"
+                  accept="image/*"
+                  className="sr-only"
+                  onChange={(event) => setCoverFile(event.target.files?.[0] || null)}
+                />
+              </label>
             </div>
             <button className="mt-5 w-full rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">
               Publish Event

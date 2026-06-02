@@ -52,3 +52,43 @@ export async function compressImage(file, { maxWidth = 1200, maxHeight = 1200, q
     reader.onerror = (err) => reject(err);
   });
 }
+
+export async function uploadImageToImgBB(
+  file,
+  {
+    maxWidth = 1600,
+    maxHeight = 1600,
+    quality = 0.8,
+  } = {}
+) {
+  if (!file) {
+    throw new Error("Please choose an image to upload.");
+  }
+
+  if (!file.type.startsWith("image/")) {
+    throw new Error("Only image files are allowed.");
+  }
+
+  const compressedBlob = await compressImage(file, {
+    maxWidth,
+    maxHeight,
+    quality,
+  });
+
+  const formData = new FormData();
+  formData.append("image", compressedBlob);
+
+  const apiKey = import.meta.env.VITE_IMGBB_API_KEY || "137614336ce818edd585fb7df6650421";
+  const response = await fetch(`https://api.imgbb.com/1/upload?key=${apiKey}`, {
+    method: "POST",
+    body: formData,
+  });
+
+  const result = await response.json();
+
+  if (result.success) {
+    return result.data.url;
+  }
+
+  throw new Error(result.error?.message || "ImgBB upload failed.");
+}
