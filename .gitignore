@@ -1,7 +1,0 @@
-.env
-node_modules
-dist
-.firebase
-google-cloud-sdk
-google-cloud-sdk.zip
-cors.json
