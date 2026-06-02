@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { collection, doc, onSnapshot, updateDoc, query, orderBy } from "firebase/firestore";
 import { Link } from "react-router-dom";
 import { db } from "../config/firebase";
-import { USER_ROLES } from "../context/AuthContext";
+import { USER_ROLE_LABELS, USER_ROLES } from "../context/AuthContext";
 
 const STATUS_OPTIONS = ["active", "inactive", "pending"];
 
@@ -128,7 +128,7 @@ export default function MemberManagement() {
                     >
                       {Object.entries(USER_ROLES).map(([key, value]) => (
                         <option key={key} value={value}>
-                          {key.replace("_", " ")}
+                          {USER_ROLE_LABELS[value] || key.replace("_", " ")}
                         </option>
                       ))}
                     </select>

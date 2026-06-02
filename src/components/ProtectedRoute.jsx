@@ -4,6 +4,7 @@ import { USER_ROLES, useAuth } from "../context/AuthContext";
 const ROLE_LEVELS = Object.freeze({
   [USER_ROLES.VISITOR]: 0,
   [USER_ROLES.GENERAL_MEMBER]: 1,
+  [USER_ROLES.SENIOR_MEMBER]: 1.5,
   [USER_ROLES.EXECUTIVE]: 2,
   [USER_ROLES.ADMIN]: 3,
 });
@@ -64,6 +65,7 @@ export function MemberRoute({ children }) {
     <ProtectedRoute
       allowedRoles={[
         USER_ROLES.GENERAL_MEMBER,
+        USER_ROLES.SENIOR_MEMBER,
         USER_ROLES.EXECUTIVE,
         USER_ROLES.ADMIN,
       ]}

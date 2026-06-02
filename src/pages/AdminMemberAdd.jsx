@@ -3,7 +3,7 @@ import { Loader2, UserPlus, CheckCircle2, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { doc, setDoc, serverTimestamp, collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "../config/firebase";
-import { USER_ROLES } from "../context/AuthContext";
+import { USER_ROLE_LABELS, USER_ROLES } from "../context/AuthContext";
 
 export default function AdminMemberAdd() {
   const navigate = useNavigate();
@@ -146,14 +146,14 @@ export default function AdminMemberAdd() {
               name="role"
               value={form.role}
               onChange={handleChange}
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-600 bg-white"
-            >
-              {Object.entries(USER_ROLES).map(([key, value]) => (
-                <option key={key} value={value}>
-                  {key.replace("_", " ").charAt(0).toUpperCase() + key.replace("_", " ").slice(1)}
-                </option>
-              ))}
-            </select>
+            className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-600 bg-white"
+          >
+            {Object.entries(USER_ROLES).map(([key, value]) => (
+              <option key={key} value={value}>
+                {USER_ROLE_LABELS[value] || key.replace("_", " ").charAt(0).toUpperCase() + key.replace("_", " ").slice(1)}
+              </option>
+            ))}
+          </select>
           </div>
 
           <div className="mt-8 flex gap-3 pt-4">

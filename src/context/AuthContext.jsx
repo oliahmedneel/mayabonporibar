@@ -33,8 +33,17 @@ import { auth, db, googleProvider } from "../config/firebase";
 export const USER_ROLES = Object.freeze({
   VISITOR: "visitor",
   GENERAL_MEMBER: "general_member",
+  SENIOR_MEMBER: "senior_member",
   ADMIN: "admin",
   EXECUTIVE: "executive",
+});
+
+export const USER_ROLE_LABELS = Object.freeze({
+  [USER_ROLES.VISITOR]: "Visitor",
+  [USER_ROLES.GENERAL_MEMBER]: "General Member",
+  [USER_ROLES.SENIOR_MEMBER]: "Sinior Member",
+  [USER_ROLES.ADMIN]: "Admin",
+  [USER_ROLES.EXECUTIVE]: "Executive",
 });
 
 const AuthContext = createContext(null);
@@ -65,6 +74,7 @@ function buildAuthState(firebaseUser, memberDoc) {
   const isActiveMember = Boolean(firebaseUser && status === "active");
   const isAdmin = role === USER_ROLES.ADMIN;
   const isExecutive = role === USER_ROLES.EXECUTIVE;
+  const isSeniorMember = role === USER_ROLES.SENIOR_MEMBER;
 
   return {
     firebaseUser,
@@ -79,6 +89,7 @@ function buildAuthState(firebaseUser, memberDoc) {
     isAuthenticated: Boolean(firebaseUser),
     isVisitor: !firebaseUser,
     isGeneralMember: role === USER_ROLES.GENERAL_MEMBER && isActiveMember,
+    isSeniorMember: isSeniorMember && isActiveMember,
     isAdmin,
     isExecutive,
     isCommittee: (isAdmin || isExecutive) && isActiveMember,
