@@ -30,6 +30,7 @@ export default function Gallery() {
   const [error, setError] = useState("");
   const [file, setFile] = useState(null);
   const [form, setForm] = useState(initialForm);
+  const [displayCount, setDisplayCount] = useState(6);
 
   useEffect(() => {
     const galleryQuery = query(collection(db, "gallery"), orderBy("createdAt", "desc"));
@@ -114,6 +115,9 @@ export default function Gallery() {
     }
   }
 
+  const displayedPhotos = photos.slice(0, displayCount);
+  const hasMore = photos.length > displayCount;
+
   return (
     <main className="min-h-[calc(100vh-65px)] bg-slate-50 px-4 py-8">
       <div className="mx-auto max-w-7xl">
@@ -147,38 +151,52 @@ export default function Gallery() {
             Loading gallery...
           </div>
         ) : (
-          <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {photos.length === 0 && (
-              <div className="rounded-md border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500 sm:col-span-2 lg:col-span-3">
-                No gallery photos yet.
+          <>
+            <div className="mt-6 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {photos.length === 0 && (
+                <div className="rounded-md border border-dashed border-slate-300 bg-white p-8 text-center text-sm text-slate-500 sm:col-span-2 lg:col-span-3">
+                  No gallery photos yet.
+                </div>
+              )}
+
+              {displayedPhotos.map((photo) => (
+                <article key={photo.id} className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
+                  <div className="aspect-[4/3] bg-slate-100">
+                    {photo.imageURL ? (
+                      <img src={photo.imageURL} alt={photo.title} className="h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-slate-400">
+                        <Image size={48} />
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-5">
+                    <h2 className="font-bold text-slate-950">{photo.title}</h2>
+                    <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">
+                      {photo.description}
+                    </p>
+                    {photo.eventId && (
+                      <p className="mt-3 inline-flex rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">
+                        Event: {photo.eventId}
+                      </p>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+
+            {/* See More Button */}
+            {hasMore && (
+              <div className="mt-8 flex justify-center">
+                <button
+                  onClick={() => setDisplayCount(displayCount + 6)}
+                  className="rounded-md bg-emerald-700 px-6 py-2 text-sm font-semibold text-white hover:bg-emerald-800 transition"
+                >
+                  See More ({photos.length - displayCount} remaining)
+                </button>
               </div>
             )}
-
-            {photos.map((photo) => (
-              <article key={photo.id} className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
-                <div className="aspect-[4/3] bg-slate-100">
-                  {photo.imageURL ? (
-                    <img src={photo.imageURL} alt={photo.title} className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-slate-400">
-                      <Image size={48} />
-                    </div>
-                  )}
-                </div>
-                <div className="p-5">
-                  <h2 className="font-bold text-slate-950">{photo.title}</h2>
-                  <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">
-                    {photo.description}
-                  </p>
-                  {photo.eventId && (
-                    <p className="mt-3 inline-flex rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-600">
-                      Event: {photo.eventId}
-                    </p>
-                  )}
-                </div>
-              </article>
-            ))}
-          </div>
+          </>
         )}
       </div>
 
@@ -193,9 +211,9 @@ export default function Gallery() {
             </div>
 
             <div className="mt-4 grid gap-3">
-              <input required value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder="Photo title" className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-600" />
-              <input value={form.eventId} onChange={(event) => setForm((current) => ({ ...current, eventId: event.target.value }))} placeholder="Related event ID or category" className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-600" />
-              <textarea rows={4} value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} placeholder="Caption or description" className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-600" />
+              <input required value={form.title} onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))} placeholder="Photo title" className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600" />
+              <input value={form.eventId} onChange={(event) => setForm((current) => ({ ...current, eventId: event.target.value }))} placeholder="Related event ID or category" className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600" />
+              <textarea rows={4} value={form.description} onChange={(event) => setForm((current) => ({ ...current, description: event.target.value }))} placeholder="Caption or description" className="rounded-md border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600" />
               <label className="flex cursor-pointer items-center gap-3 rounded-md border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-sm text-slate-600 hover:border-emerald-400">
                 <ImagePlus size={20} className="text-emerald-700" />
                 <span className="min-w-0 truncate">
@@ -219,7 +237,7 @@ export default function Gallery() {
 
             <button
               disabled={submitting}
-              className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+              className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-md bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitting ? <Loader2 size={18} className="animate-spin" /> : <UploadCloud size={18} />}
               {submitting ? "Uploading..." : "Upload Photo"}
